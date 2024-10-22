@@ -1,0 +1,11 @@
+.text-white {
+    color: white !important;
+
+    &>* {
+        color: white !important;
+    }
+}
+
+thead.text-white tr th {
+    color: white !important;
+}

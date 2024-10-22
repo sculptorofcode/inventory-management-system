@@ -1,0 +1,186 @@
+<?php
+require_once 'includes/config/after-login.php';
+$title = 'Add Product';
+$form_action = 'add';
+if (isset($_POST['submit_product'])) {
+    $form_action = filtervar($_POST['form_action']);
+    $id = filtervar($_POST['id']);
+    $product_name = filtervar($_POST['product_name']);
+    $supplier_id = filtervar($_POST['supplier_id']);
+    $category = filtervar($_POST['category']);
+    $purchase_price = filtervar($_POST['purchase_price']);
+    $selling_price = filtervar($_POST['selling_price']);
+    $quantity = filtervar($_POST['quantity']);
+    $added_date = filtervar($_POST['added_date']);
+    $description = filtervar($_POST['description']);
+
+    if ($form_action == 'add') {
+        $res = addProduct($supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description);
+    } else {
+        $res = updateProduct($id, $supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description);
+    }
+    
+    if ($res) {
+        if($form_action == 'add') {
+            $res = ['status' => 'success', 'message' => 'Product added successfully', 'redirect' => 'product'];
+        } else {
+            $res = ['status' => 'success', 'message' => 'Product updated successfully'];
+        }
+    } else {
+        $res = ['status' => 'error', 'message' => 'Failed to add supplier'];
+    }
+
+    echo json_encode($res);
+    exit;
+}
+if (isset($_GET['id'])) {
+    $id = filtervar($_GET['id']);
+    $row = getProductById($id);
+    $title = 'Edit Product';
+    $form_action = 'edit';
+}
+?>
+<!DOCTYPE html>
+<html lang="en" class="light-style layout-menu-fixed" dir="ltr" data-theme="theme-default" data-assets-path="assets/"
+    data-template="vertical-menu-template-free">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0" />
+    <?php include './includes/layouts/styles.php'; ?>
+</head>
+
+<body>
+    <div class="layout-wrapper layout-content-navbar">
+        <div class="layout-container">
+            <?php include './includes/layouts/sidebar.php'; ?>
+            <div class="layout-page">
+                <?php include './includes/layouts/navbar.php'; ?>
+                <div class="content-wrapper">
+                    <div class="container-fluid flex-grow-1 container-p-y">
+                        <div class="card">
+                            <div class="card-header p-3 border-bottom">
+                                <h4 class="card-title mb-0"><?= $title ?></h4>
+                            </div>
+                            <div class="card-body py-3">
+                                <form action="" method="post" class="form">
+                                    <input type="hidden" name="form_action" value="<?= $form_action ?>">
+                                    <input type="hidden" name="id"
+                                        value="<?= isset($row['product_id']) ? $row['product_id'] : '' ?>">
+
+                                    <div class="row">
+                                        <!-- Product Name -->
+                                        <div class="form-group col-md-3">
+                                            <label for="product_name">Product Name</label>
+                                            <input type="text" class="form-control" id="product_name"
+                                                name="product_name" placeholder="Enter Product Name"
+                                                value="<?php isset($row['product_name']) ? special_echo($row['product_name']) : '' ?>"
+                                                required>
+                                        </div>
+
+                                        <!-- Supplier ID -->
+                                        <div class="form-group col-md-3">
+                                            <label for="supplier_id">Supplier</label>
+                                            <select name="supplier_id" id="supplier_id" class="form-select" required>
+                                                <option value="">Select Supplier</option>
+                                                <?php
+                                                $suppliers = getSuppliers();
+                                                foreach ($suppliers as $supplier) {
+                                                    $selected = isset($row['supplier_id']) && $row['supplier_id'] == $supplier['supplier_id'] ? 'selected' : '';
+                                                    echo '<option value="' . $supplier['supplier_id'] . '" ' . $selected . '>' . html_entity_decode($supplier['supplier_name']) . '</option>';
+                                                }
+                                                ?>
+                                            </select>
+                                        </div>
+
+                                        <!-- Category -->
+                                        <div class="form-group col-md-3">
+                                            <label for="category">Category</label>
+                                            <select name="category" id="category" class="form-select" required>
+                                                <option value="">Select Category</option>
+                                                <?php
+                                                $categories = getAllProductCategories();
+                                                foreach ($categories as $category) {
+                                                    $selected = isset($row['category']) && $row['category'] == $category['category_id'] ? 'selected' : '';
+                                                    echo '<option value="' . $category['category_id'] . '" ' . $selected . '>' . html_entity_decode($category['category_name']) . '</option>';
+                                                }
+                                                ?>
+                                            </select>
+                                        </div>
+
+                                        <!-- Purchase Price -->
+                                        <div class="form-group col-md-3">
+                                            <label for="purchase_price">Purchase Price</label>
+                                            <input type="number" class="form-control" id="purchase_price"
+                                                name="purchase_price" placeholder="Enter Purchase Price"
+                                                value="<?= isset($row['purchase_price']) ? round($row['purchase_price'],2) : '' ?>"
+                                                required>
+                                        </div>
+
+                                        <!-- Selling Price -->
+                                        <div class="form-group col-md-3">
+                                            <label for="selling_price">Selling Price</label>
+                                            <input type="number" class="form-control" id="selling_price"
+                                                name="selling_price" placeholder="Enter Selling Price"
+                                                value="<?= isset($row['selling_price']) ? round($row['selling_price'],2) : '' ?>"
+                                                step="0.01" required>
+                                        </div>
+
+                                        <!-- Quantity -->
+                                        <div class="form-group col-md-3 d-none">
+                                            <label for="quantity">Quantity</label>
+                                            <input type="number" class="form-control" id="quantity" name="quantity"
+                                                placeholder="Enter Quantity"
+                                                value="<?= isset($row['quantity']) ? special_echo($row['quantity']) : '' ?>">
+                                        </div>
+
+                                        <!-- Added Date -->
+                                        <div class="form-group col-md-3">
+                                            <label for="added_date">Added Date</label>
+                                            <input type="text" class="form-control datepicker" id="added_date"
+                                                name="added_date"
+                                                value="<?= isset($row['added_date']) ? special_echo($row['added_date']) : '' ?>"
+                                                placeholder="Select Date" required>
+                                        </div>
+
+                                        <!-- Description -->
+                                        <div class="form-group col-md-12">
+                                            <label for="description">Description</label>
+                                            <textarea class="form-control" id="description" name="description"
+                                                placeholder="Enter Product Description" rows="3"
+                                                required><?= isset($row['description']) ? special_echo($row['description']) : '' ?></textarea>
+                                        </div>
+
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="form-group col-md-12">
+                                            <button type="submit" name="submit_product"
+                                                class="btn btn-primary">Submit</button>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <?php include './includes/layouts/dash-footer.php'; ?>
+                    <div class="content-backdrop fade"></div>
+                </div>
+            </div>
+        </div>
+        <div class="layout-overlay layout-menu-toggle"></div>
+    </div>
+    <?php include './includes/layouts/scripts.php'; ?>
+    <script>
+    $(function() {
+        <?php
+            if (isset($row['postal_code'])) {
+                echo '$("#postal_code").trigger("input");';
+            }
+            ?>
+    })
+    </script>
+</body>
+
+</html>

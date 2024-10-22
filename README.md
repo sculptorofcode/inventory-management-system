@@ -55,18 +55,6 @@ An Inventory Management System designed for managing products, suppliers, and st
    - unit_cost_price: DECIMAL
    - last_updated: TIMESTAMP
 
-4. **tbl_stock_transactions** 📝
-   - transaction_id: INT (Primary Key)
-   - product_id: INT (Foreign Key)
-   - quantity_change: INT
-   - previous_quantity: INT
-   - transaction_type: ENUM ('in', 'out')
-   - transaction_date: TIMESTAMP
-   - notes: VARCHAR
-   - user_id: INT
-   - transaction_location: VARCHAR
-   - order_reference: VARCHAR
-
 ## 🚀 Installation
 
 1. **Clone the repository** 📥
@@ -76,7 +64,7 @@ An Inventory Management System designed for managing products, suppliers, and st
    ```
 
 2. **Setup Database** 🗄️
-   - Create a MySQL database and import the SQL scripts for the tables provided in the `/sql` directory.
+   - Create a MySQL database and import the SQL scripts for the tables provided in the `/migrations` directory.
 
 3. **Configure Database Connection** ⚙️
    - Edit the database connection details in the `config.php` file:

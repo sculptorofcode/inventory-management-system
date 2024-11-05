@@ -83,17 +83,6 @@ function isMobileRegistered($mobile)
     return $stmt->fetchColumn() > 0;
 }
 
-function isUsernameTaken($username)
-{
-    global $conn, $table_customers;
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM $table_customers WHERE `username` = :username");
-    $stmt->bindParam(':username', $username);
-    $stmt->execute();
-
-    return $stmt->fetchColumn() > 0;
-}
-
 function getCustomerById($customerId)
 {
     global $conn, $table_customers;
@@ -104,6 +93,19 @@ function getCustomerById($customerId)
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
+
+if(!function_exists('getAllCustomers')){
+    function getAllCustomers()
+    {
+        global $conn, $table_customers;
+
+        $stmt = $conn->prepare("SELECT * FROM $table_customers WHERE `user_type` = 'customer'");
+        $stmt->execute();
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+}
+
 function update_profile($data, $customer_id)
 {
     global $conn, $table_customers, $session;

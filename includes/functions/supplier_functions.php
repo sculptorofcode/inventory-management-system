@@ -1,9 +1,38 @@
 <?php
 // Function to create a new supplier
-function createSupplier($supplierName, $email, $phone, $streetAddress, $city, $stateProvince, $postalCode, $country, $registrationDate) {
+function createSupplier(
+    $supplierName,
+    $email,
+    $phone,
+    $streetAddress,
+    $city,
+    $stateProvince,
+    $postalCode,
+    $country,
+    $registrationDate,
+    $gst_type,
+    $gstin,
+    $pan,
+    $tan,
+    $cin
+) {
     global $conn, $table_suppliers;
 
-    $stmt = $conn->prepare("INSERT INTO $table_suppliers (supplier_name, email, phone, street_address, city, state_province, postal_code, country, registration_date) VALUES (:supplier_name, :email, :phone, :street_address, :city, :state_province, :postal_code, :country, :registration_date)");
+    $stmt = $conn->prepare("INSERT INTO $table_suppliers 
+                                    SET supplier_name = :supplier_name, 
+                                        email = :email, 
+                                        phone = :phone, 
+                                        street_address = :street_address, 
+                                        city = :city, 
+                                        state_province = :state_province, 
+                                        postal_code = :postal_code, 
+                                        country = :country, 
+                                        registration_date = :registration_date, 
+                                        gst_type = :gst_type, 
+                                        gstin = :gstin, 
+                                        pan = :pan, 
+                                        tan = :tan, 
+                                        cin = :cin");
     $stmt->bindParam(':supplier_name', $supplierName);
     $stmt->bindParam(':email', $email);
     $stmt->bindParam(':phone', $phone);
@@ -13,6 +42,11 @@ function createSupplier($supplierName, $email, $phone, $streetAddress, $city, $s
     $stmt->bindParam(':postal_code', $postalCode);
     $stmt->bindParam(':country', $country);
     $stmt->bindParam(':registration_date', $registrationDate);
+    $stmt->bindParam(':gst_type', $gst_type);
+    $stmt->bindParam(':gstin', $gstin);
+    $stmt->bindParam(':pan', $pan);
+    $stmt->bindParam(':tan', $tan);
+    $stmt->bindParam(':cin', $cin);
 
     return $stmt->execute();
 }
@@ -37,12 +71,40 @@ function getSuppliers() {
 }
 
 // Function to update a supplier's details
-function updateSupplier($supplierId, $supplierName, $email, $phone, $streetAddress, $city, $stateProvince, $postalCode, $country, $registrationDate) {
+function updateSupplier(
+    $supplierId,
+    $supplierName,
+    $email,
+    $phone,
+    $streetAddress,
+    $city,
+    $stateProvince,
+    $postalCode,
+    $country,
+    $registrationDate,
+    $gst_type,
+    $gstin,
+    $pan,
+    $tan,
+    $cin
+) {
     global $conn, $table_suppliers;
-
+    
     $stmt = $conn->prepare("UPDATE $table_suppliers 
-                            SET supplier_name = :supplier_name, email = :email, phone = :phone, street_address = :street_address, 
-                                city = :city, state_province = :state_province, postal_code = :postal_code, country = :country , registration_date = :registration_date
+                            SET supplier_name = :supplier_name, 
+                                email = :email, 
+                                phone = :phone, 
+                                street_address = :street_address, 
+                                city = :city, 
+                                state_province = :state_province, 
+                                postal_code = :postal_code, 
+                                country = :country, 
+                                registration_date = :registration_date, 
+                                gst_type = :gst_type, 
+                                gstin = :gstin, 
+                                pan = :pan, 
+                                tan = :tan, 
+                                cin = :cin
                             WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->bindParam(':supplier_name', $supplierName);
@@ -72,8 +134,8 @@ function deleteSupplier($supplierId) {
 function getSupplierById($supplierId) {
     global $conn, $table_suppliers;
 
-    $stmt = $conn->prepare("SELECT supplier_id, supplier_name, email, phone, street_address, city, state_province, postal_code, country, registration_date 
-                            FROM $table_suppliers WHERE supplier_id = :supplier_id");
+    $stmt = $conn->prepare("SELECT *
+                                  FROM $table_suppliers WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->execute();
 

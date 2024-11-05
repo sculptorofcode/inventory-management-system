@@ -25,7 +25,7 @@ if (isset($_POST['verify_email'])) {
     if (isEmailRegistered($email)) {
         $res = ['status' => 'error', 'message' => 'Email is already taken'];
     } else {
-        if ($_SESSION['register_props']['email'] === $email) {
+        if (isset($_SESSION['register_props']['email']) && $_SESSION['register_props']['email'] === $email) {
             $res = ['status' => 'info', 'message' => 'Email already verified'];
         } else {
             $to = $email;
@@ -66,13 +66,13 @@ if (isset($_POST['verify_phone'])) {
     if (isMobileRegistered($number)) {
         $res = ['status' => 'error', 'message' => 'Number is already taken'];
     } else {
-        if ($_SESSION['register_props']['phone'] === $number) {
+        if (isset($_SESSION['register_props']['phone']) && $_SESSION['register_props']['phone'] === $number) {
             $res = ['status' => 'info', 'message' => 'Phone number already verified'];
         } else {
             $to = $number;
             $otp = $_SESSION['phone_otp'] = generateOTP(6);
             $message = "Your OTP for phone verification is: $otp";
-            $response = $sms->sendDLTManual($to, $message);
+            $response = $sms->sendOTP($to, 0, $otp);
             if ($response['status'] === 'success') {
                 if (DEBUG_MODE) {
                     $res = ['status' => 'success', 'otp' => $otp, 'message' => 'OTP sent successfully'];

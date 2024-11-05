@@ -1,3 +1,6 @@
+<div id="loader" class="loader-overlay">
+    <div class="spinner"></div>
+</div>
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
     <div class="app-brand demo">
         <a href="dashboard" class="app-brand-link">
@@ -26,17 +29,17 @@
             <ul class="menu-sub">
                 <li class="menu-item">
                     <a href="product" class="menu-link">
-                        <div data-i18n="SupplierAdd">Add</div>
+                        <div>Add</div>
                     </a>
                 </li>
                 <li class="menu-item">
                     <a href="product-list" class="menu-link">
-                        <div data-i18n="SupplierList">List</div>
+                        <div>List</div>
                     </a>
                 </li>
                 <li class="menu-item">
                     <a href="product-category" class="menu-link">
-                        <div data-i18n="SupplierList">Product Category</div>
+                        <div>Product Category</div>
                     </a>
                 </li>
             </ul>
@@ -55,6 +58,66 @@
                 <li class="menu-item">
                     <a href="supplier-list" class="menu-link">
                         <div data-i18n="SupplierList">List</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="menu-item">
+            <a href="stock-list" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-archive"></i>
+                <div>Stock</div>
+            </a>
+        </li>
+        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-cart"></i>
+                <div data-i18n="Account Settings">Purchase Order</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="purchase" class="menu-link">
+                        <div>Add</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="purchase-list" class="menu-link">
+                        <div>List</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-cart"></i>
+                <div data-i18n="Account Settings">Sale Order</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="sale" class="menu-link">
+                        <div>Add</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="sale-list" class="menu-link">
+                        <div>List</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-user"></i>
+                <div data-i18n="Account Settings">Customer</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="customer" class="menu-link">
+                        <div data-i18n="CustomerAdd">Add</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="customer-list" class="menu-link">
+                        <div data-i18n="CustomerList">List</div>
                     </a>
                 </li>
             </ul>

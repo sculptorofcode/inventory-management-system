@@ -1,6 +1,6 @@
 $(function () {
     const EMAIL_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
-    $('.form').on('submit', function (e) {
+    $(document).on('submit', 'form', function (e) {
         e.preventDefault();
         let form = $(this);
         let submitBtn = form.find('[type="submit"]');
@@ -9,8 +9,9 @@ $(function () {
         let actionUrl = form.attr('action');
         let onSuccess = form.data('on-success');
         let reset = form.data('reset');
+        let method = form.attr('method');
 
-        formData.append(submitBtn.attr('name'), 'true');
+        formData.append(submitBtn.attr('name') || 'submit', 'true');
 
         if (!form[0].checkValidity()) {
             form.addClass('was-validated');
@@ -21,7 +22,7 @@ $(function () {
 
         $.ajax({
             url: actionUrl,
-            type: 'post',
+            type: method || 'POST',
             data: formData,
             processData: false,
             contentType: false,
@@ -43,6 +44,11 @@ $(function () {
                             if (onSuccess) {
                                 window[onSuccess](res);
                             }
+
+                            if(res.function){
+                                window[res.function](res);
+                            }
+
                             if (res.redirect && res.delay) {
                                 setTimeout(function () {
                                     window.location.href = res.redirect;
@@ -61,12 +67,15 @@ $(function () {
                                 }
                             }
                         }
-                        sessionStorage.setItem(res.status, res.message);
+                        if ((res.redirect && !res.delay) || (res.reload && !res.delay)) {
+                            sessionStorage.setItem(res.status, res.message);
+                        }
                     } else {
                         toastr.error('Something went wrong, please try again later.', 'Error');
                     }
                 } catch (e) {
                     console.error('Error:', e);
+                    console.log(data);
                     toastr.error('Something went wrong, please try again later.', 'Error');
                 }
             },
@@ -80,7 +89,7 @@ $(function () {
         });
     });
 
-    $(".numInput").on('input', function () {
+    $(document).on('input', ".numInput",  function () {
         let number = $(this).val();
         if (typeof number === 'string') {
             number = number.replace(/[^0-9]/g, '');
@@ -88,8 +97,17 @@ $(function () {
         $(this).val(number);
     });
 
+    $(document).on('input', ".decimalInput", function () {
+        let number = $(this).val();
+
+        if (typeof number === 'string') {
+            number = number.replace(/[^0-9.]/g, '');
+        }
+        $(this).val(number);
+    });
+
     // Email Verify
-    $(".emailVerify").on('input', function () {
+    $(document).on('input', ".emailVerify", function () {
         let email = $(this).val();
         if (!EMAIL_REGEX.test(email)) {
             $(this).addClass('is-invalid');
@@ -99,7 +117,7 @@ $(function () {
         }
     });
     // Name Verify
-    $(".nameVerify").on('input', function () {
+    $(document).on('input', ".nameVerify", function () {
         let name = $(this).val();
         if (name.length < 3) {
             $(this).addClass('is-invalid');
@@ -110,10 +128,10 @@ $(function () {
     });
 
     // Number Verify
-    $(".numberVerify").on('input', function () {
+    $(document).on('input', ".numberVerify", function () {
         let number = $(this).val();
         let length = $(this).attr('length');
-        if (length && number.length != length) {
+        if (length && number.length !== length) {
             $(this).addClass('is-invalid');
         } else {
             $(this).removeClass('is-invalid');
@@ -152,34 +170,4 @@ $(function () {
         }
     }
 
-    
-    $("#postal_code").on('input', function() {
-        $this = $(this);
-        let postal_code = $this.val();
-        if (postal_code && postal_code.length === 6) {
-            $this.addClass('loading');
-            $.post('ajax', {
-                check_postal_code: postal_code
-            }, function(response) {
-                $this.removeClass('loading');
-                response = JSON.parse(response);
-                if (response.status === 'success') {
-                    $('#city').val(response.city).prop('readonly', true).addClass('valid');
-                    $('#state_province').val(response.state).prop('readonly', true).addClass('valid');
-                    $('#country').val(response.country).prop('readonly', true).addClass('valid');
-                    $this.removeClass('is-invalid');
-                    $this.next().text('').hide();
-                } else {
-                    $this.addClass('is-invalid');
-                    $this.siblings('.invalid-feedback').html(response.message).show();
-                }
-            });
-        }
-    });
-
-    $('.datepicker').flatpickr({
-        dateFormat: 'Y-m-d',
-        altInput: true,
-        altFormat: 'd-m-Y',
-    });
 })

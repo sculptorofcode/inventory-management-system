@@ -1,47 +1,42 @@
 <?php
 require_once 'includes/config/after-login.php';
-$title = 'Purchase List';
+
+$title = 'Sales List';
+
 if (isset($_REQUEST['draw'])) {
     $draw = $_REQUEST['draw'];
     $start = $_REQUEST['start'];
     $length = $_REQUEST['length'];
-    $search = $_REQUEST['search']['value'];
+    $search = $_REQUEST['search']['value'] ?? '';
     $order = $_REQUEST['order'][0]['column'];
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
 
-    $query = "SELECT po.*, s.supplier_name, (SELECT COUNT(*) FROM `$table_supplier_payments` WHERE `$table_supplier_payments`.`purchase_order_id` = po.`order_id` ) AS total_payments FROM $table_purchase_orders po
-    LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
-    WHERE 1 = 1";
+    $query = "SELECT so.*, c.full_name AS customer_name, 
+              (SELECT COUNT(*) FROM `$table_customer_payments` WHERE `$table_customer_payments`.`sale_order_id` = so.`order_id`) AS total_payments 
+              FROM $table_sales_orders so
+              LEFT JOIN $table_customers c ON so.customer_id = c.customer_id 
+              WHERE 1 = 1";
+
+    if (!empty($search)) {
+        $query .= " AND (so.sale_date LIKE '%$search%' OR c.customer_name LIKE '%$search%')";
+    }
+
+    if (!empty($_REQUEST['status'])) {
+        $query .= " AND so.status = '" . $_REQUEST['status'] . "'";
+    }
+
+    $query .= " ORDER BY " . $columns[$order]['data'] . " " . $order_dir . " LIMIT $start, $length";
 
     $stmt = $conn->prepare($query);
     $stmt->execute();
     $total = $stmt->rowCount();
 
-    if (!empty($search)) {
-        $query .= " AND (po.added_date LIKE '%$search%' OR s.supplier_name LIKE '%$search%')";
-    }
-
-    if (!empty($_REQUEST['supplier'])) {
-        $query .= " AND po.supplier_id = " . $_REQUEST['supplier'];
-    }
-
-    if (!empty($_REQUEST['product'])) {
-        $query .= " AND po.order_id IN (SELECT purchase_order_id FROM $table_purchase_orders_details WHERE product_id = " . $_REQUEST['product'] . ")";
-    }
-
-    if (!empty($_REQUEST['status'])) {
-        $query .= " AND po.status = '" . $_REQUEST['status'] . "'";
-    }
-
-    $query .= " ORDER BY " . $columns[$order]['data'] . " DESC LIMIT $start, $length";
-    $stmt = $conn->prepare($query);
-    $stmt->execute();
     $data = [];
     $sl_no = $start + 1;
     while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
         $inv_number = "<a href='javascript:void(0)' class='text-nowrap' onclick='showOrder(" . $row['order_id'] . ")'>" . $row['inv_number'] . "</a>";
-        $status = '<a href="javascript:void(0)" onclick="chnageStatus(' . $row['order_id'] . ')">';
+        $status = '<a href="javascript:void(0)" onclick="changeStatus(' . $row['order_id'] . ')">';
         if ($row['status'] === 'pending')
             $status .= '<span class="badge badge-warning bg-warning">Pending</span>';
         elseif ($row['status'] === 'confirmed')
@@ -60,120 +55,287 @@ if (isset($_REQUEST['draw'])) {
         if ($row['due_amount'] > 0) {
             $due_amount = '<span class="text-danger">' . $due_amount . '</span>';
             $due_amount .= ' <a href="javascript:void(0)" onclick="payDue(' . $row['order_id'] . ')" title="Pay Now" class="btn btn-primary btn-sm ms-2 px-1 py-1"><i class="bx bx-plus"></i></a>';
-        } else if ($row['total_payments'] > 0) {
-            $due_amount = ' <a href="javascript:void(0)" title="Payment List" onclick="payDue(' . $row['order_id'] . ')" class="btn btn-info btn-sm ms-2 px-1 py-1"><i class="bx bx-list-check"></i></a>';
         }
 
-        $action = '';
-        # $action .= '<a href="javascript:void(0)" onclick="chnageStatus(' . $row['order_id'] . ')" class="btn btn-primary btn-sm px-2 py-1"><i class="bx bx-edit"></i></a>';
-        $action .= '<a href="purchase-print?order_id=' . $row['order_id'] . '" target="_blank" class="btn btn-info btn-sm px-2 py-1"><i class="bx bx-printer"></i></a>';
-
+        $action = '<a href="javascript:void(0)" data-url="sale-print?order_id=' . $row['order_id'] . '" class="btn btn-info btn-sm print-btn px-2 py-1"><i class="bx bx-printer"></i></a>';
 
         $data[] = [
             'sl_no' => $sl_no++,
             'order_id' => $row['order_id'],
             'inv_number' => $inv_number,
-            'supplier_name' => $row['supplier_name'],
+            'customer_name' => $row['customer_name'],
             'total_products' => $row['total_products'],
-            'total_amount' => rupee($row['total_amount'], 2),
             'total_quantity' => $row['total_quantity'],
             'total_cost_price' => rupee($row['total_cost_price'], 2),
             'total_gst' => rupee($row['total_gst'], 2),
             'discount' => rupee($row['discount'], 2),
+            'total_amount' => rupee($row['total_amount'], 2),
             'paid_amount' => rupee($row['paid_amount'], 2),
             'due_amount' => $due_amount,
             'status' => $status,
-            'action' => $action
+            'action' => $action,
         ];
     }
 
     $response = [
         'draw' => $draw,
         'recordsTotal' => $total,
-        'recordsFiltered' => $stmt->rowCount(),
-        'data' => $data
+        'recordsFiltered' => $total,
+        'data' => $data,
     ];
+
     echo json_encode($response);
     exit;
 }
 
-if (isset($_REQUEST['order-deatils'])) {
+if (isset($_REQUEST['order-details'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
-            WHERE order_id = :order_id");
+    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM $table_sales_orders so
+                LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
+                WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders_details WHERE purchase_order_id = :order_id");
+
+    // Fetch order details
+    $stmt = $conn->prepare("SELECT sod.*, p.product_name FROM $table_sales_orders_details sod LEFT JOIN $table_products p ON p.`product_id` = sod.`product_id` WHERE sale_order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
     ?>
+
     <div class="container">
         <?php order_details($order); ?>
         <div class="table-responsive">
             <table class="table table-bordered">
                 <thead>
                 <tr>
-                    <th>Sl. No.</th>
+                    <th>Sl.No.</th>
                     <th>Product</th>
                     <th>Quantity</th>
-                    <th>Cost Price</th>
+                    <th>Price</th>
                     <th>Amount</th>
-                    <th>GST</th>
-                    <th>Grand Total</th>
                 </tr>
                 </thead>
                 <tbody>
                 <?php
                 $sl_no = 1;
                 foreach ($order_details as $order_detail) {
-                    $product = getProductById($order_detail['product_id']);
                     $amount = $order_detail['quantity'] * $order_detail['unit_cost_price'];
-                    $gst = ($amount * $order_detail['gst_rate']) / 100; ?>
+                    ?>
                     <tr>
                         <td><?= $sl_no++ ?></td>
-                        <td><?= html_entity_decode($product['product_name']) ?></td>
+                        <td><?= html_entity_decode($order_detail['product_name']) ?></td>
                         <td><?= $order_detail['quantity'] ?></td>
                         <td><?= rupee($order_detail['unit_cost_price'], 2) ?></td>
                         <td><?= rupee($amount, 2) ?></td>
-                        <td><?= rupee($gst, 2) ?> (<?= round($order_detail['gst_rate'], 2) ?>%)</td>
-                        <td><?= rupee($amount + $gst, 2) ?></td>
                     </tr>
-                    <?php
-                }
-                ?>
+                <?php } ?>
                 <tr>
-                    <td colspan="6" class="text-end"><b>Total Cost Price</b></td>
+                    <td colspan="4" class="text-end"><b>Total Cost Price</b></td>
                     <td><?= rupee($order['total_cost_price'], 2) ?></td>
                 </tr>
                 <tr>
-                    <td colspan="6" class="text-end"><b>Total GST</b></td>
+                    <td colspan="4" class="text-end"><b>Total GST</b></td>
                     <td><?= rupee($order['total_gst'], 2) ?></td>
+                </tr>
+                <tr>
+                    <td colspan="4" class="text-end"><b>Sub Total</b></td>
+                    <td><?= rupee($order['total_amount'] + $order['discount'], 2) ?></td>
                 </tr>
                 <?php if ($order['discount'] > 0) { ?>
                     <tr>
-                        <td colspan="6" class="text-end"><b>Discount</b></td>
+                        <td colspan="4" class="text-end"><b>Discount</b></td>
                         <td><?= rupee($order['discount'], 2) ?></td>
                     </tr>
                 <?php } ?>
                 <tr>
-                    <td colspan="6" class="text-end"><b>Total Amount</b></td>
+                    <td colspan="4" class="text-end"><b>Total Amount</b></td>
                     <td><?= rupee($order['total_amount'], 2) ?></td>
                 </tr>
                 </tbody>
             </table>
         </div>
     </div>
+
     <?php
+    exit;
+}
+
+if (isset($_REQUEST['pay-due'])) {
+    $order_id = $_REQUEST['order_id'];
+    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM $table_sales_orders so
+            LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
+            WHERE order_id = :order_id");
+    $stmt->bindParam(':order_id', $order_id);
+    $stmt->execute();
+    $order = $stmt->fetch(PDO::FETCH_ASSOC); ?>
+    <div class="container">
+        <?php order_details($order); ?>
+        <div class="row">
+            <div class="col-md-12">
+                <?php if ($order['due_amount'] > 0) { ?>
+                    <form action="sale-list" method="post" class="form">
+                        <input type="hidden" name="order_id" value="<?= $order_id ?>">
+                        <input type="hidden" name="due_amount" id="due_amount" value="<?= $order['due_amount'] ?>">
+                        <div class="row form-group">
+                            <div class="col-sm-4">
+                                <label for="pay_amount" class="form-label">Pay Amount</label>
+                                <input type="text" name="pay_amount" id="pay_amount" class="form-control numInput"
+                                       placeholder="Enter Amount"
+                                       max="<?= $order['due_amount'] ?>" required>
+                            </div>
+                            <div class="col-sm-4">
+                                <label for="payment_method" class="form-label">Payment Method</label>
+                                <select name="payment_method" class="form-select" required>
+                                    <option value="">Select Payment Method</option>
+                                    <?php
+                                    foreach ($payment_mode as $key => $mode) {
+                                        ?>
+                                        <option value="<?= $key ?>"><?= $mode ?></option>
+                                        <?php
+                                    }
+                                    ?>
+                                </select>
+                            </div>
+                            <div class="col-sm-4">
+                                <label for="payment_date" class="form-label">Payment Date</label>
+                                <input type="text" name="payment_date" class="form-control datepicker"
+                                       placeholder="Select Date"
+                                       required>
+                            </div>
+                            <div class="col-sm-12 mt-2">
+                                <label class="form-label">Remarks</label>
+                                <textarea name="remarks" class="form-control"
+                                          placeholder="Enter Remarks"></textarea>
+                            </div>
+                        </div>
+                        <div class="form-group row justify-content-center">
+                            <div class="col-auto">
+                                <button type="submit" class="btn btn-primary" name="pay_due">Pay Due Amount</button>
+                            </div>
+                        </div>
+                    </form>
+                    <hr>
+                <?php } ?>
+            </div>
+            <div class="col-12">
+                <h4>Payment History</h4>
+            </div>
+            <div class="col-12">
+                <div class="table-responsive force">
+                    <table class="table table-bordered">
+                        <thead class="bg-primary text-white text-nowrap">
+                        <tr>
+                            <th>Sl. No.</th>
+                            <th>Payment Date</th>
+                            <th>Payment Method</th>
+                            <th>Amount</th>
+                            <th>Remarks</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <?php
+                        $stmt = $conn->prepare("SELECT * FROM $table_customer_payments WHERE sale_order_id = :order_id ORDER BY `created_at` DESC");
+                        $stmt->bindParam(':order_id', $order_id);
+                        $stmt->execute();
+                        $sl_no = 1;
+                        while ($payment = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                            ?>
+                            <tr>
+                                <td><?= $sl_no++ ?></td>
+                                <td><?= date('d-m-Y', strtotime($payment['payment_date'])) ?></td>
+                                <td><?= $payment_mode[$payment['payment_method']] ?></td>
+                                <td><?= rupee($payment['amount'], 2) ?></td>
+                                <td><?= !empty($payment['notes']) ? html_entity_decode($payment['notes']) : '' ?></td>
+                            </tr>
+                            <?php
+                        }
+                        ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        $(function () {
+            $('.datepicker').flatpickr({
+                altInput: true,
+                altFormat: 'd-m-Y',
+                dateFormat: 'Y-m-d',
+                maxDate: 'today',
+                disableMobile: false,
+            });
+            $("#pay_amount").on('input', function () {
+                let due_amount = parseInt($("#due_amount").val());
+                let pay_amount = parseInt($(this).val());
+                if (pay_amount > due_amount) {
+                    $(this).val('');
+                    $('.due-amount').html('<?= rupee($order['due_amount'], 2) ?>');
+                    toastr && toastr.error("Amount should be less than due amount", "Error", {
+                        positionClass: 'toast-top-right',
+                        timeOut: 5000
+                    });
+                } else {
+                    $('.due-amount').html('₹ ' + (due_amount - pay_amount).toLocaleString('en-IN', {maximumFractionDigits: 2}));
+                }
+            })
+        })
+    </script>
+    <?php
+    exit;
+}
+
+if (isset($_POST['pay_due'])) {
+    $order_id = $_POST['order_id'];
+    $pay_amount = $_POST['pay_amount'];
+    $payment_method = $_POST['payment_method'];
+    $remarks = filter_var($_POST['remarks']);
+    $payment_date = date('Y-m-d', strtotime($_POST['payment_date']));
+
+    if (intval($pay_amount) <= 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid amount']);
+        exit;
+    }
+
+    $stmt = $conn->prepare("SELECT * FROM $table_sales_orders WHERE order_id = :order_id");
+    $stmt->bindParam(':order_id', $order_id);
+    $stmt->execute();
+    $order = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    $due_amount = $order['due_amount'] - intval($pay_amount);
+    $total_paid = $order['paid_amount'] + intval($pay_amount);
+
+    $stmt = $conn->prepare("INSERT INTO $table_customer_payments SET customer_id = :customer_id, sale_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes");
+    $stmt->bindParam(':customer_id', $order['customer_id']);
+    $stmt->bindParam(':order_id', $order_id);
+    $stmt->bindParam(':payment_date', $payment_date);
+    $stmt->bindParam(':payment_method', $payment_method);
+    $stmt->bindParam(':amount', $pay_amount);
+    $stmt->bindParam(':notes', $remarks);
+
+    if ($stmt->execute()) {
+        $stmt = $conn->prepare("UPDATE $table_sales_orders SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
+        $stmt->bindParam(':due_amount', $due_amount);
+        $stmt->bindParam(':total_paid', $total_paid);
+        $stmt->bindParam(':order_id', $order_id);
+
+        if ($stmt->execute()) {
+            echo json_encode(['status' => 'success', 'message' => 'Payment added successfully', 'function' => 'reload']);
+        } else {
+            echo json_encode(['status' => 'error', 'message' => 'Failed to update due amount']);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Failed to add payment']);
+    }
     exit;
 }
 
 if (isset($_REQUEST['change-status'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
+    $stmt = $conn->prepare("SELECT so.*, c.full_name as customer_name FROM $table_sales_orders so
+            LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -184,7 +346,7 @@ if (isset($_REQUEST['change-status'])) {
             <?php
             if ($order['status'] !== 'delivered' && $order['status'] !== 'cancelled') { ?>
                 <div class="col-md-12">
-                    <form action="purchase-list" method="post" class="form">
+                    <form action="sale-list" method="post" class="form">
                         <input type="hidden" name="order_id" value="<?= $order_id ?>">
                         <?php order_details($order); ?>
                         <div class="form-group row">
@@ -251,7 +413,7 @@ if (isset($_REQUEST['change-status'])) {
                         </thead>
                         <tbody>
                         <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_purchase_order_status_log WHERE order_id = :order_id ORDER BY `changed_at` DESC");
+                        $stmt = $conn->prepare("SELECT * FROM $table_sales_orders_status_log WHERE order_id = :order_id ORDER BY `changed_at` DESC");
                         $stmt->bindParam(':order_id', $order_id);
                         $stmt->execute();
                         $sl_no = 1;
@@ -303,265 +465,110 @@ if (isset($_REQUEST['change-status'])) {
     exit;
 }
 
-if (isset($_POST['change_status'])) {
+if (isset($_REQUEST['change_status'])) {
     $order_id = $_POST['order_id'];
     $status = $_POST['status'];
     $delivery_date = filtervar($_POST['delivery_date']);
     $shipping_address = filtervar($_POST['shipping_address']);
     $remarks = filtervar($_POST['remarks']);
-    try {
-        $conn->beginTransaction();
-
-        $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders WHERE order_id = :order_id");
-        $stmt->bindParam(':order_id', $order_id);
-        $stmt->execute();
-        $order = $stmt->fetch(PDO::FETCH_ASSOC);
-        $sql = "UPDATE $table_purchase_orders SET status = :status";
-        if ($status === 'delivered') {
-            $sql .= ", delivery_date = :delivery_date, shipping_address = :shipping_address";
-        }
-        $sql .= " WHERE order_id = :order_id";
-        $stmt = $conn->prepare($sql);
-        $stmt->bindParam(':status', $status);
-        if ($status === 'delivered') {
-            $stmt->bindParam(':delivery_date', $delivery_date);
-            $stmt->bindParam(':shipping_address', $shipping_address);
-        }
-        $stmt->bindParam(':order_id', $order_id);
-        if ($stmt->execute()) {
-            $stmt = $conn->prepare("INSERT INTO $table_purchase_order_status_log SET order_id = :order_id, old_status = :old_status, new_status = :new_status, changed_by = :changed_by, remarks = :remarks");
-            $stmt->bindParam(':order_id', $order_id);
-            $stmt->bindParam(':old_status', $order['status']);
-            $stmt->bindParam(':new_status', $status);
-            $stmt->bindParam(':changed_by', $user_id);
-            $stmt->bindParam(':remarks', $remarks);
-            if ($stmt->execute()) {
-                if ($status === 'delivered') {
-                    $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders_details WHERE purchase_order_id = :order_id");
-                    $stmt->bindParam(':order_id', $order_id);
-                    $stmt->execute();
-                    while ($order_detail = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                        $product = getProductById($order_detail['product_id']);
-                        $stmt = $conn->prepare("UPDATE $table_products SET stock = stock + :quantity WHERE product_id = :product_id");
-                        $stmt->bindParam(':quantity', $order_detail['quantity']);
-                        $stmt->bindParam(':product_id', $order_detail['product_id']);
-                        $stmt->execute();
-                        $batch_number = generateUniqueInvoiceNumber('B', 'tbl_stock', 'stock_id', 4, ['product_id' => $order_detail['product_id']]);
-                        $stmt = $conn->prepare("INSERT INTO $table_stock SET product_id = :product_id, batch_number = :batch_number, quantity = :quantity, supplier_id = :supplier_id, unit_cost_price = :unit_cost_price");
-                        $stmt->bindParam(':product_id', $order_detail['product_id']);
-                        $stmt->bindParam(':batch_number', $batch_number);
-                        $stmt->bindParam(':quantity', $order_detail['quantity']);
-                        $stmt->bindParam(':supplier_id', $order['supplier_id']);
-                        $stmt->bindParam(':unit_cost_price', $order_detail['unit_cost_price']);
-                        if ($stmt->execute()) {
-                            $stmt = $conn->prepare("INSERT INTO $table_stock_transactions SET product_id = :product_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
-                            $transaction_type = 'in';
-                            $notes = 'Stock added for order #' . $order['inv_number'];
-                            $stmt->bindParam(':product_id', $order_detail['product_id']);
-                            $stmt->bindParam(':quantity_change', $order_detail['quantity']);
-                            $stmt->bindParam(':previous_quantity', $product['stock']);
-                            $stmt->bindParam(':transaction_type', $transaction_type);
-                            $stmt->bindParam(':transaction_date', $delivery_date);
-                            $stmt->bindParam(':notes', $notes);
-                            $stmt->bindParam(':user_id', $user_id);
-                            $stmt->bindParam(':order_reference', $order['inv_number']);
-                            $stmt->execute();
-                        }
-
-                    }
-                }
-                $conn->commit();
-                echo json_encode(['status' => 'success', 'message' => 'Status changed successfully', 'function' => 'reload']);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'Failed to log status change']);
-            }
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to change status']);
-        }
-    } catch (Exception $e) {
-        $conn->rollBack();
-        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    if (empty($status)) {
+        echo json_encode(['status' => 'error', 'message' => 'Select status']);
+        exit;
     }
-    exit;
-}
-
-if (isset($_REQUEST['pay-due'])) {
-    $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
-            WHERE order_id = :order_id");
+    $stmt = $conn->prepare("SELECT * FROM $table_sales_orders WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
-    ?>
-    <div class="container">
-        <?php order_details($order); ?>
-        <div class="row">
-            <div class="col-md-12">
-                <?php if ($order['due_amount'] > 0) { ?>
-                    <form action="purchase-list" method="post" class="form">
-                        <input type="hidden" name="order_id" value="<?= $order_id ?>">
-                        <input type="hidden" name="due_amount" id="due_amount" value="<?= $order['due_amount'] ?>">
-                        <div class="row form-group">
-                            <div class="col-sm-4">
-                                <label for="pay_amount" class="form-label">Pay Amount</label>
-                                <input type="text" name="pay_amount" id="pay_amount" class="form-control numInput"
-                                       placeholder="Enter Amount"
-                                       max="<?= $order['due_amount'] ?>" required>
-                            </div>
-                            <div class="col-sm-4">
-                                <label for="payment_method" class="form-label">Payment Method</label>
-                                <select name="payment_method" class="form-select" required>
-                                    <option value="">Select Payment Method</option>
-                                    <?php
-                                    foreach ($payment_mode as $key => $mode) {
-                                        ?>
-                                        <option value="<?= $key ?>"><?= $mode ?></option>
-                                        <?php
-                                    }
-                                    ?>
-                                </select>
-                            </div>
-                            <div class="col-sm-4">
-                                <label for="payment_date" class="form-label">Payment Date</label>
-                                <input type="text" name="payment_date" class="form-control datepicker"
-                                       placeholder="Select Date"
-                                       required>
-                            </div>
-                            <div class="col-sm-12 mt-2">
-                                <label class="form-label">Remarks</label>
-                                <textarea name="remarks" class="form-control"
-                                          placeholder="Enter Remarks"></textarea>
-                            </div>
-                        </div>
-                        <div class="form-group row justify-content-center">
-                            <div class="col-auto">
-                                <button type="submit" class="btn btn-primary" name="pay_due">Pay Due Amount</button>
-                            </div>
-                        </div>
-                    </form>
-                    <hr>
-                <?php } ?>
-            </div>
-            <div class="col-12">
-                <h4>Payment History</h4>
-            </div>
-            <div class="col-12">
-                <div class="table-responsive force">
-                    <table class="table table-bordered">
-                        <thead class="bg-primary text-white text-nowrap">
-                        <tr>
-                            <th>Sl. No.</th>
-                            <th>Payment Date</th>
-                            <th>Payment Method</th>
-                            <th>Amount</th>
-                            <th>Remarks</th>
-                        </tr>
-                        </thead>
-                        <tbody>
-                        <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_supplier_payments WHERE purchase_order_id = :order_id ORDER BY `created_at` DESC");
-                        $stmt->bindParam(':order_id', $order_id);
-                        $stmt->execute();
-                        $sl_no = 1;
-                        while ($payment = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                            ?>
-                            <tr>
-                                <td><?= $sl_no++ ?></td>
-                                <td><?= date('d-m-Y', strtotime($payment['payment_date'])) ?></td>
-                                <td><?= $payment_mode[$payment['payment_method']] ?></td>
-                                <td><?= rupee($payment['amount'], 2) ?></td>
-                                <td><?= !empty($payment['notes']) ? html_entity_decode($payment['notes']) : '' ?></td>
-                            </tr>
-                            <?php
-                        }
-                        ?>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-    <script>
-        $(function () {
-            $('.datepicker').flatpickr({
-                altInput: true,
-                altFormat: 'd-m-Y',
-                dateFormat: 'Y-m-d',
-                maxDate: 'today',
-                disableMobile: false,
-            });
-            $("#pay_amount").on('input', function () {
-                let due_amount = parseInt($("#due_amount").val());
-                let pay_amount = parseInt($(this).val());
-                if (pay_amount > due_amount) {
-                    $(this).val('');
-                    $('.due-amount').html('<?= rupee($order['due_amount'], 2) ?>');
-                    toastr && toastr.error("Amount should be less than due amount", "Error", {
-                        positionClass: 'toast-top-right',
-                        timeOut: 5000
-                    });
-                } else {
-                    $('.due-amount').html('₹ ' + (due_amount - pay_amount).toLocaleString('en-IN', {maximumFractionDigits: 2}));
-                }
-            })
-        })
-    </script>
-    <?php
-    exit;
-}
+    if (!empty($order)) {
+        if($status === $order['status']){
+            echo json_encode(['status' => 'error', 'message' => 'Status not changed']);
+            exit;
+        }
 
-if (isset($_POST['pay_due'])) {
-    $order_id = $_POST['order_id'];
-    $pay_amount = $_POST['pay_amount'];
-    $payment_method = $_POST['payment_method'];
-    $remarks = filtervar($_POST['remarks']);
-    $payment_date = date('Y-m-d', strtotime($_POST['payment_date']));
-    if(intval($pay_amount) <= 0){
-        echo json_encode(['status' => 'error', 'message' => 'Invalid amount']);
-        exit;
-    }else{
-        $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders WHERE order_id = :order_id");
+        $stmt = $conn->prepare("SELECT * FROM $table_sales_orders_details WHERE sale_order_id = :order_id");
         $stmt->bindParam(':order_id', $order_id);
         $stmt->execute();
-        $order = $stmt->fetch(PDO::FETCH_ASSOC);
-        $due_amount = $order['due_amount'] - intval($pay_amount);
-        $total_paid = $order['paid_amount'] + intval($pay_amount);
-        $stmt = $conn->prepare("INSERT INTO $table_supplier_payments SET supplier_id = :supplier_id, purchase_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes");
-        $stmt->bindParam(':supplier_id', $order['supplier_id']);
-        $stmt->bindParam(':order_id', $order_id);
-        $stmt->bindParam(':payment_date', $payment_date);
-        $stmt->bindParam(':payment_method', $payment_method);
-        $stmt->bindParam(':amount', $pay_amount);
-        $stmt->bindParam(':notes', $remarks);
-        if ($stmt->execute()) {
-            $stmt = $conn->prepare("UPDATE $table_purchase_orders SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
-            $stmt->bindParam(':due_amount', $due_amount);
-            $stmt->bindParam(':total_paid', $total_paid);
-            $stmt->bindParam(':order_id', $order_id);
-            if ($stmt->execute()) {
-                echo json_encode(['status' => 'success', 'message' => 'Payment added successfully', 'function' => 'reload']);
-            } else {
-                echo json_encode(['status' => 'error', 'message' => 'Failed to update due amount']);
+        $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        try {
+            $conn->beginTransaction();
+            foreach ($order_details as $order_detail) {
+                $stmt = $conn->prepare("SELECT * FROM $table_stock WHERE product_id = :product_id AND quantity >= :quantity ORDER BY added_on ASC LIMIT 1");
+                $stmt->bindParam(':product_id', $order_detail['product_id']);
+                $stmt->bindParam(':quantity', $order_detail['quantity']);
+                $stmt->execute();
+                $stock = $stmt->fetch(PDO::FETCH_ASSOC);
+                if (!empty($stock)) {
+                    $batch_number = $stock['batch_number'];
+                    $stmt = $conn->prepare("UPDATE $table_stock SET quantity = quantity - :quantity WHERE stock_id = :stock_id");
+                    $stmt->bindParam(':quantity', $order_detail['quantity']);
+                    $stmt->bindParam(':stock_id', $stock['stock_id']);
+                    $stmt->execute();
+
+                    $stmt = $conn->prepare("INSERT INTO $table_stock_transactions SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
+                    $remarks_new = 'Order ID: ' . $order['inv_number'] . ' - ' . $remarks;
+                    $stmt->bindParam(':product_id', $order_detail['product_id']);
+                    $stmt->bindParam(':stock_id', $stock['stock_id']);
+                    $stmt->bindParam(':quantity_change', $order_detail['quantity']);
+                    $stmt->bindParam(':previous_quantity', $stock['quantity']);
+                    $stmt->bindValue(':transaction_type', 'out');
+                    $stmt->bindParam(':transaction_date', $now);
+                    $stmt->bindParam(':notes', $remarks_new);
+                    $stmt->bindParam(':user_id', $user_id);
+                    $stmt->bindParam(':order_reference', $order['inv_number']);
+                    $stmt->execute();
+
+                    $stmt = $conn->prepare("UPDATE $table_sales_orders_details SET batch_number = :batch_number WHERE sale_order_id = :order_id AND product_id = :product_id");
+                    $stmt->bindParam(':batch_number', $batch_number);
+                    $stmt->bindParam(':order_id', $order_id);
+                    $stmt->bindParam(':product_id', $order_detail['product_id']);
+                    $stmt->execute();
+
+                    $stmt = $conn->prepare("UPDATE $table_products SET stock = stock - :quantity WHERE product_id = :product_id");
+                    $stmt->bindParam(':quantity', $order_detail['quantity']);
+                    $stmt->bindParam(':product_id', $order_detail['product_id']);
+                    $stmt->execute();
+                } else {
+                    throw new Exception('Insufficient stock');
+                }
             }
-        } else {
-            echo json_encode(['status' => 'error', 'message' => 'Failed to add payment']);
+
+            $stmt = $conn->prepare("INSERT INTO $table_sales_orders_status_log SET order_id = :order_id, old_status = :old_status, new_status = :new_status, remarks = :remarks, changed_by = :changed_by, changed_at = :changed_at");
+            $stmt->bindParam(':order_id', $order_id);
+            $stmt->bindParam(':old_status', $order['status']);
+            $stmt->bindParam(':new_status', $status);
+            $stmt->bindParam(':remarks', $remarks);
+            $stmt->bindParam(':changed_by', $user_id);
+            $stmt->bindParam(':changed_at', $now);
+            $stmt->execute();
+
+            $stmt = $conn->prepare("UPDATE $table_sales_orders SET status = :status, delivery_date = :delivery_date, shipping_address = :shipping_address WHERE order_id = :order_id");
+            $stmt->bindParam(':status', $status);
+            $stmt->bindParam(':delivery_date', $delivery_date);
+            $stmt->bindParam(':shipping_address', $shipping_address);
+            $stmt->bindParam(':order_id', $order_id);
+            $stmt->execute();
+
+            $conn->commit();
+
+            echo json_encode(['status' => 'success', 'message' => 'Status changed successfully', 'function' => 'reload']);
+        } catch (Exception $e) {
+            $conn->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
+    }else{
+        echo json_encode(['status' => 'error', 'message' => 'Order not found']);
     }
     exit;
 }
 ?>
 <!DOCTYPE html>
-<html lang="en" class="light-style layout-menu-fixed" dir="ltr" data-theme="theme-default" data-assets-path="assets/"
-      data-template="vertical-menu-template-free">
-
+<html lang="en">
 <head>
     <meta charset="utf-8"/>
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <?php include './includes/layouts/styles.php'; ?>
 </head>
-
 <body>
 <div class="layout-wrapper layout-content-navbar">
     <div class="layout-container">
@@ -569,114 +576,42 @@ if (isset($_POST['pay_due'])) {
         <div class="layout-page">
             <?php include './includes/layouts/navbar.php'; ?>
             <div class="content-wrapper">
-
                 <div class="container-fluid flex-grow-1 container-p-y">
                     <div class="card">
                         <div class="card-header p-3 border-bottom">
                             <h4 class="card-title mb-0"><?= $title ?></h4>
                         </div>
                         <div class="card-body py-3">
-                            <div class="row">
-                                <div class="col-md-12">
-                                    <div class="form-group row justify-content-center align-items-end gap-3">
-                                        <div class="col-sm">
-                                            <label class="form-label">Search:</label>
-                                            <input type="text" name="search" id="search" class="form-control"
-                                                   placeholder="Search">
-                                        </div>
-                                        <div class="col-sm">
-                                            <label class="form-label">Supplier</label>
-                                            <select name="supplier" id="supplier" class="form-select">
-                                                <option value="">Select Supplier</option>
-                                                <?php
-                                                $stmt = $conn->prepare("SELECT * FROM $table_suppliers");
-                                                $stmt->execute();
-                                                while ($supplier = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                                    ?>
-                                                    <option value="<?= $supplier['supplier_id'] ?>"><?= $supplier['supplier_name'] ?></option>
-                                                    <?php
-                                                }
-                                                ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-sm">
-                                            <label class="form-label">Product</label>
-                                            <select name="product" id="product" class="form-select">
-                                                <option value="">Select Product</option>
-                                                <?php
-                                                $stmt = $conn->prepare("SELECT * FROM $table_products");
-                                                $stmt->execute();
-                                                while ($product = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                                                    ?>
-                                                    <option value="<?= $product['product_id'] ?>"><?= html_entity_decode($product['product_name']) ?></option>
-                                                    <?php
-                                                }
-                                                ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-sm">
-                                            <label class="form-label">Status</label>
-                                            <select name="status" id="status" class="form-select">
-                                                <option value="">Select Status</option>
-                                                <?php
-                                                foreach ($order_status as $status) {
-                                                    ?>
-                                                    <option value="<?= $status ?>"><?= ucfirst($status) ?></option>
-                                                    <?php
-                                                }
-                                                ?>
-                                            </select>
-                                        </div>
-                                        <div class="col-sm-auto">
-                                            <button type="button" class="btn btn-primary" onclick="table.api().ajax.reload()">Search</button>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-12">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered" id="dataTable">
-                                            <thead class="bg-primary text-white">
-
-                                            </thead>
-                                        </table>
-                                    </div>
-                                </div>
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="salesList">
+                                    <thead class="bg-primary text-white">
+                                    </thead>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
-                <?php include './includes/layouts/dash-footer.php'; ?>
-                <div class="content-backdrop fade"></div>
             </div>
+            <?php include './includes/layouts/dash-footer.php'; ?>
         </div>
     </div>
-    <div class="layout-overlay layout-menu-toggle"></div>
 </div>
 <?php include './includes/layouts/scripts.php'; ?>
 <script>
-    let table = currentModal = '';
-    $(function () {
-        table = $("#dataTable").dataTable({
-            "processing": true,
-            "serverSide": true,
-            searching: false,
-            lengthChange: false,
-            responsive: true,
-            "ajax": {
-                url: "purchase-list",
-                type: "POST",
-                data: function (d) {
-                    d.search.value = $('#search').val();
-                    d.supplier = $('#supplier').val();
-                    d.product = $('#product').val();
-                    d.status = $('#status').val();
-                }
+    $(document).ready(function () {
+        $('#salesList').DataTable({
+            processing: true,
+            serverSide: true,
+            ajax: {
+                url: 'sale-list.php',
+                type: 'POST',
             },
-            "columns": [
+            order: [[0, 'desc']],
+            columns: [
                 {"data": "order_id", "visible": false},
                 {"data": "sl_no", title: "Sl. No.", orderable: false},
                 {"data": "inv_number", title: "Order ID", orderable: false},
-                {"data": "supplier_name", title: "Supplier", orderable: false},
+                {"data": "customer_name", title: "Customer", orderable: false},
                 {"data": "total_products", title: "Total Products", orderable: false},
                 {"data": "total_quantity", title: "Total Quantity", orderable: false},
                 {"data": "total_cost_price", title: "Total Cost Price", orderable: false},
@@ -687,65 +622,53 @@ if (isset($_POST['pay_due'])) {
                 {"data": "due_amount", title: "Due Amount", orderable: false},
                 {"data": 'status', title: 'Status', orderable: false},
                 {"data": "action", title: "Action", orderable: false}
-            ]
+            ],
         });
-    })
+
+        window.reload = function () {
+            if (window.currentDialog) {
+                window.currentDialog.close();
+            }
+            $('#salesList').DataTable().ajax.reload();
+        }
+
+        $(document).on('click', '.print-btn', function (e) {
+            e.preventDefault();
+            let url = $(this).data('url');
+            let w =window.open(url, '_blank', 'location=yes,height=800,width=1200,scrollbars=yes,status=yes');
+            w.print();
+            setTimeout(function () {
+                w.close();
+            }, 1000);
+        });
+    });
 
     function showOrder(order_id) {
-        currentModal = $.dialog({
+        window.currentDialog = $.dialog({
             title: 'Order Details',
-            content: 'url:purchase-list?order-deatils&order_id=' + order_id,
+            content: 'url:sale-list?order-details=true&order_id=' + order_id,
             columnClass: 'l',
-            closeIcon: true,
-            closeIconClass: 'fa fa-close',
-            onContentReady: function () {
-                var self = this;
-                self.$content.find('.btn').click(function () {
-                    self.close();
-                });
-            }
+            type: 'blue',
         })
     }
 
-    function chnageStatus(order_id) {
-        currentModal = $.dialog({
-            title: 'Change Status',
-            content: 'url:purchase-list?change-status&order_id=' + order_id,
+    function payDue(order_id) {
+        window.currentDialog = $.dialog({
+            title: "Pay Due Amount",
+            content: `url:sale-list?pay-due=true&order_id=${order_id}`,
             columnClass: 'l',
-            closeIcon: true,
-            closeIconClass: 'fa fa-close',
-            onContentReady: function () {
-                var self = this;
-                self.$content.find('.btn').click(function () {
-                    self.close();
-                });
-            }
-        })
+            type: 'blue',
+        });
     }
 
-    function reload() {
-        if (currentModal) {
-            currentModal.close();
-        }
-        table.api().ajax.reload();
-    }
-
-    function payDue(id) {
-        currentModal = $.dialog({
-            title: 'Pay Due Amount',
-            content: 'url:purchase-list?pay-due&order_id=' + id,
+    function changeStatus(order_id) {
+        window.currentDialog = $.dialog({
+            title: 'Change Order Status',
+            content: `url:sale-list?change-status=true&order_id=${order_id}`,
             columnClass: 'l',
-            closeIcon: true,
-            closeIconClass: 'fa fa-close',
-            onContentReady: function () {
-                var self = this;
-                self.$content.find('.btn').click(function () {
-                    self.close();
-                });
-            }
-        })
+            type: 'blue',
+        });
     }
 </script>
 </body>
-
 </html>

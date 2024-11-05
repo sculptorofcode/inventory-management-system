@@ -42,6 +42,12 @@ if (isset($_REQUEST['draw'])) {
         }
         $data[$key]['added_date'] = !empty($row['added_date']) ? date('d M Y', strtotime($row['added_date'])) : '';
         $data[$key]['action'] = '<a href="product?id=' . $row['product_id'] . '" class="btn btn-sm btn-primary"><i class="fa fa-edit"></i></a>';
+        if ($row['gst_type'] > 0) {
+            $data[$key]['gst_type'] = $row['gst_type'] == 1 ? 'CGST/SGST' : ($row['gst_type'] == 2 ? 'IGST' : '');
+            $data[$key]['gst_type'] .= ' - ' . round($row['gst_rate'], 2) . '%';
+        } else {
+            $data[$key]['gst_type'] = '';
+        }
     }
 
     $response = [
@@ -98,50 +104,55 @@ if (isset($_REQUEST['draw'])) {
     </div>
     <?php include './includes/layouts/scripts.php'; ?>
     <script>
-    $("#dataTable").dataTable({
-        "processing": true,
-        "serverSide": true,
-        "ajax": {
-            url: "product-list",
-            type: "POST"
-        },
-        "columns": [{
-                data: "product_id",
-                title: "ID",
-                orderable: false,
-                visible: false
-            }, {
-                data: "sl_no",
-                title: "SL No.",
-                orderable: false,
+        $("#dataTable").dataTable({
+            "processing": true,
+            "serverSide": true,
+            "ajax": {
+                url: "product-list",
+                type: "POST"
             },
-            {
-                "data": "product_name",
-                title: "Supplier Name",
-                orderable: false
-            },
-            {
-                data: 'supplier_name',
-                title: 'Supplier Name',
-                orderable: false
-            },
-            {
-                data: 'category_name',
-                title: 'Category',
-                orderable: false
-            },
-            {
-                "data": "added_date",
-                title: "Added Date",
-                orderable: false
-            },
-            {
-                "data": "action",
-                title: "Action",
-                orderable: false
-            }
-        ]
-    })
+            "columns": [{
+                    data: "product_id",
+                    title: "ID",
+                    orderable: false,
+                    visible: false
+                }, {
+                    data: "sl_no",
+                    title: "SL No.",
+                    orderable: false,
+                },
+                {
+                    "data": "product_name",
+                    title: "Product Name",
+                    orderable: false
+                },
+                {
+                    data: 'supplier_name',
+                    title: 'Supplier Name',
+                    orderable: false
+                },
+                {
+                    data: 'category_name',
+                    title: 'Category',
+                    orderable: false
+                },
+                {
+                    data: 'gst_type',
+                    title: 'GST Type & Rate',
+                    orderable: false
+                },
+                {
+                    "data": "added_date",
+                    title: "Added Date",
+                    orderable: false
+                },
+                {
+                    "data": "action",
+                    title: "Action",
+                    orderable: false
+                }
+            ]
+        })
     </script>
 </body>
 

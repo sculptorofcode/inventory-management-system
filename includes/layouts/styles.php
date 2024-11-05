@@ -1,10 +1,10 @@
 <title><?= $title ?> - <?= APP_NAME ?></title>
 <?php
-if(isset($page_desc)){
-    echo '<meta name="description" content="'.$page_desc.'">';
+if (isset($page_desc)) {
+    echo '<meta name="description" content="' . $page_desc . '">';
 }
-if(isset($page_keywords)){
-    echo '<meta name="keywords" content="'.$page_keywords.'">';
+if (isset($page_keywords)) {
+    echo '<meta name="keywords" content="' . $page_keywords . '">';
 }
 ?>
 <link rel="icon" type="image/x-icon" href="assets/images/logo/transparent/favicon.png" />
@@ -20,6 +20,8 @@ if(isset($page_keywords)){
 <link rel="stylesheet" href="assets/libs/flatpickr/flatpickr.min.css">
 <!-- DataTables CSS -->
 <link rel="stylesheet" href="assets/libs/datatables/datatables.min.css">
+<!-- Selectize -->
+<link rel="stylesheet" href="assets/libs/selectize/selectize.default.min.css">
 <link rel="stylesheet" href="assets/vendor/fonts/boxicons.css" />
 <link rel="stylesheet" href="assets/vendor/css/core.css" class="template-customizer-core-css" />
 <link rel="stylesheet" href="assets/vendor/css/theme-default.css" class="template-customizer-theme-css" />

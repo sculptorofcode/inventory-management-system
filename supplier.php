@@ -13,12 +13,17 @@ if (isset($_POST['supplier'])) {
     $state_province = filtervar($_POST['state_province']);
     $country = filtervar($_POST['country']);
     $registration_date = date('Y-m-d', strtotime($registration_date));
+    $gst_type = filtervar($_POST['gst_type']);
+    $gstin = filtervar($_POST['gstin']);
+    $pan = filtervar($_POST['pan']);
+    $tan = filtervar($_POST['tan']);
+    $cin = filtervar($_POST['cin']);
 
     if (isset($_POST['form_action']) && $_POST['form_action'] == 'add') {
-        $res = createSupplier($supplier_name, $email, $phone, $street_address, $city, $state_province, $postal_code, $country, $registration_date);
+        $res = createSupplier($supplier_name, $email, $phone, $street_address, $city, $state_province, $postal_code, $country, $registration_date, $gst_type, $gstin, $pan, $tan, $cin);
     } else {
         $id = filtervar($_POST['id']);
-        $res = updateSupplier($id, $supplier_name, $email, $phone, $street_address, $city, $state_province, $postal_code, $country, $registration_date);
+        $res = updateSupplier($id, $supplier_name, $email, $phone, $street_address, $city, $state_province, $postal_code, $country, $registration_date, $gst_type, $gstin, $pan, $tan, $cin);
     }
 
     if ($res) {
@@ -144,6 +149,55 @@ if (isset($_GET['id'])) {
                                                 value="<?= isset($row['country']) ? $row['country'] : '' ?>"
                                                 placeholder="Enter Country" required>
                                         </div>
+
+                                        <!-- GST Type -->
+                                        <div class="form-group col-md-3">
+                                            <label for="gst_type">GST Type</label>
+                                            <select class="form-control" id="gst_type" name="gst_type" required>
+                                                <option value="">Select GST Type</option>
+                                                <option value="Regular"
+                                                    <?= isset($row['gst_type']) && $row['gst_type'] == 'Regular' ? 'selected' : '' ?>>
+                                                    Regular</option>
+                                                <option value="Composition"
+                                                    <?= isset($row['gst_type']) && $row['gst_type'] == 'Composition' ? 'selected' : '' ?>>
+                                                    Composition</option>
+                                                <option value="Unregistered"
+                                                    <?= isset($row['gst_type']) && $row['gst_type'] == 'Unregistered' ? 'selected' : '' ?>>
+                                                    Unregistered</option>
+                                            </select>
+                                        </div>
+
+                                        <!-- GSTIN -->
+                                        <div class="form-group col-md-3 gstin-group">
+                                            <label for="gstin">GSTIN</label>
+                                            <input type="text" class="form-control" id="gstin" name="gstin"
+                                                value="<?= isset($row['gstin']) ? $row['gstin'] : '' ?>"
+                                                placeholder="Enter GSTIN">
+                                        </div>
+
+                                        <!-- PAN -->
+                                        <div class="form-group col-md-3">
+                                            <label for="pan">PAN</label>
+                                            <input type="text" class="form-control" id="pan" name="pan"
+                                                value="<?= isset($row['pan']) ? $row['pan'] : '' ?>"
+                                                placeholder="Enter PAN">
+                                        </div>
+
+                                        <!-- TAN -->
+                                        <div class="form-group col-md-3">
+                                            <label for="tan">TAN</label>
+                                            <input type="text" class="form-control" id="tan" name="tan"
+                                                value="<?= isset($row['tan']) ? $row['tan'] : '' ?>"
+                                                placeholder="Enter TAN">
+                                        </div>
+
+                                        <!-- CIN -->
+                                        <div class="form-group col-md-3">
+                                            <label for="cin">CIN</label>
+                                            <input type="text" class="form-control" id="cin" name="cin"
+                                                value="<?= isset($row['cin']) ? $row['cin'] : '' ?>"
+                                                placeholder="Enter CIN">
+                                        </div>
                                     </div>
 
                                     <div class="row">
@@ -167,13 +221,16 @@ if (isset($_GET['id'])) {
     </div>
     <?php include './includes/layouts/scripts.php'; ?>
     <script>
-    $(function() {
-        <?php
-            if (isset($row['postal_code'])) {
-                echo '$("#postal_code").trigger("input");';
-            }
-            ?>
-    })
+        $(function() {
+            $("#gst_type").change(function() {
+                let value = $(this).val();
+                if (value == 'Regular' || value == 'Composition') {
+                    $('.gstin-group').show().find('input').attr('required', true);
+                } else {
+                    $('.gstin-group').hide().find('input').removeAttr('required');
+                }
+            })
+        })
     </script>
 </body>
 

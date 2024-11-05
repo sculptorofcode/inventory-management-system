@@ -146,6 +146,11 @@
     border-bottom: 2px solid #dc3545;
 }
 
+.form-control:read-only:required,
+.form-select:read-only:required {
+    border-bottom: 2px solid var(--secondary-color);
+}
+
 .form-control:required:focus,
 .form-select:required:focus {
     border-color: var(--secondary-color);
@@ -257,4 +262,10 @@
 
 .text-white>* {
     color: white !important;
+}
+
+@media (max-width: 576px) {
+    .jconfirm-content .table-responsive {
+        width: calc(100vw - 100px);
+    }
 }

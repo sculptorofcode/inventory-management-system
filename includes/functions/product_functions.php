@@ -1,11 +1,10 @@
 <?php
 
-function addProduct($supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description = '')
+function addProduct($supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code)
 {
     global $table_products, $conn;
 
-    $stmt = $conn->prepare("INSERT INTO $table_products (supplier_id, product_name, category, purchase_price, selling_price, quantity, description) 
-                            VALUES (:supplier_id, :product_name, :category, :purchase_price, :selling_price, :quantity, :description)");
+    $stmt = $conn->prepare("INSERT INTO $table_products SET supplier_id = :supplier_id, product_name = :product_name, category = :category, purchase_price = :purchase_price, selling_price = :selling_price, quantity = :quantity, description = :description, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->bindParam(':product_name', $productName);
     $stmt->bindParam(':category', $category);
@@ -13,17 +12,20 @@ function addProduct($supplierId, $productName, $category, $purchasePrice, $selli
     $stmt->bindParam(':selling_price', $sellingPrice);
     $stmt->bindParam(':quantity', $quantity);
     $stmt->bindParam(':description', $description);
+    $stmt->bindParam(':gst_type', $gst_type);
+    $stmt->bindParam(':gst_rate', $gst_rate);
+    $stmt->bindParam(':hsn_code', $hsn_code);
 
     return $stmt->execute();
 }
 
-function updateProduct($productId, $supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description = '')
+function updateProduct($productId, $supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code)
 {
     global $table_products, $conn;
 
     $stmt = $conn->prepare("UPDATE $table_products 
                             SET supplier_id = :supplier_id, product_name = :product_name, category = :category, purchase_price = :purchase_price, 
-                                selling_price = :selling_price, quantity = :quantity, description = :description
+                                selling_price = :selling_price, quantity = :quantity, description = :description, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code
                             WHERE product_id = :product_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->bindParam(':product_name', $productName);
@@ -33,6 +35,9 @@ function updateProduct($productId, $supplierId, $productName, $category, $purcha
     $stmt->bindParam(':quantity', $quantity);
     $stmt->bindParam(':description', $description);
     $stmt->bindParam(':product_id', $productId);
+    $stmt->bindParam(':gst_type', $gst_type);
+    $stmt->bindParam(':gst_rate', $gst_rate);
+    $stmt->bindParam(':hsn_code', $hsn_code);
 
     return $stmt->execute();
 }
@@ -58,11 +63,18 @@ function getProductById($productId)
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getAllProducts()
+function getAllProducts($category = null, $min_stock = null)
 {
     global $table_products, $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_products");
+    $sql = "SELECT * FROM $table_products WHERE 1=1";
+    if ($category) {
+        $sql .= " AND category = '$category'";
+    }
+    if ($min_stock) {
+        $sql .= " AND stock >= $min_stock";
+    }
+    $stmt = $conn->prepare($sql);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -260,6 +272,17 @@ function getAllProductCategories()
     global $table_product_categories, $conn;
 
     $stmt = $conn->prepare("SELECT * FROM $table_product_categories");
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function getProductsBySupplierId($supplierId)
+{
+    global $table_products, $conn;
+
+    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE supplier_id = :supplier_id");
+    $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);

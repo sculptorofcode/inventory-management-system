@@ -13,18 +13,21 @@ if (isset($_POST['submit_product'])) {
     $quantity = filtervar($_POST['quantity']);
     $added_date = filtervar($_POST['added_date']);
     $description = filtervar($_POST['description']);
+    $gst_type = filtervar($_POST['gst_type']);
+    $gst_rate = filtervar($_POST['gst_rate']);
+    $hsn_code = filtervar($_POST['hsn_code']);
 
     if ($form_action == 'add') {
-        $res = addProduct($supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description);
+        $res = addProduct($supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description, $gst_type, $gst_rate, $hsn_code);
     } else {
-        $res = updateProduct($id, $supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description);
+        $res = updateProduct($id, $supplier_id, $product_name, $category, $purchase_price, $selling_price, $quantity, $description, $gst_type, $gst_rate, $hsn_code);
     }
-    
+
     if ($res) {
-        if($form_action == 'add') {
+        if ($form_action == 'add') {
             $res = ['status' => 'success', 'message' => 'Product added successfully', 'redirect' => 'product'];
         } else {
-            $res = ['status' => 'success', 'message' => 'Product updated successfully'];
+            $res = ['status' => 'success', 'message' => 'Product updated successfully', 'redirect' => 'product-list'];
         }
     } else {
         $res = ['status' => 'error', 'message' => 'Failed to add supplier'];
@@ -114,7 +117,7 @@ if (isset($_GET['id'])) {
                                             <label for="purchase_price">Purchase Price</label>
                                             <input type="number" class="form-control" id="purchase_price"
                                                 name="purchase_price" placeholder="Enter Purchase Price"
-                                                value="<?= isset($row['purchase_price']) ? round($row['purchase_price'],2) : '' ?>"
+                                                value="<?= isset($row['purchase_price']) ? round($row['purchase_price'], 2) : '' ?>"
                                                 required>
                                         </div>
 
@@ -123,7 +126,7 @@ if (isset($_GET['id'])) {
                                             <label for="selling_price">Selling Price</label>
                                             <input type="number" class="form-control" id="selling_price"
                                                 name="selling_price" placeholder="Enter Selling Price"
-                                                value="<?= isset($row['selling_price']) ? round($row['selling_price'],2) : '' ?>"
+                                                value="<?= isset($row['selling_price']) ? round($row['selling_price'], 2) : '' ?>"
                                                 step="0.01" required>
                                         </div>
 
@@ -151,7 +154,40 @@ if (isset($_GET['id'])) {
                                                 placeholder="Enter Product Description" rows="3"
                                                 required><?= isset($row['description']) ? special_echo($row['description']) : '' ?></textarea>
                                         </div>
+                                    </div>
 
+                                    <div class="row gst-group">
+                                        <div class="col-md-12">
+                                            <h5>GST Details</h5>
+                                        </div>
+                                        <div class="col-md-3 form-group">
+                                            <label for="gst_type">GST Type</label>
+                                            <select name="gst_type" id="gst_type" class="form-select" required>
+                                                <option value="">Select GST Type</option>
+                                                <option value="1"
+                                                    <?= isset($row['gst_type']) && $row['gst_type'] == 1 ? 'selected' : '' ?>>
+                                                    CGST/SGST</option>
+                                                <option value="2"
+                                                    <?= isset($row['gst_type']) && $row['gst_type'] == 2 ? 'selected' : '' ?>>
+                                                    IGST</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="col-md-3 form-group">
+                                            <label for="gst_rate">GST Rate (%)</label>
+                                            <input type="text" class="form-control decimalInput" id="gst_rate"
+                                                name="gst_rate" placeholder="Enter GST Rate" step="0.01"
+                                                value="<?= isset($row['gst_rate']) ? round($row['gst_rate'], 2) : '' ?>"
+                                                required>
+                                        </div>
+
+                                        <div class="col-md-3 form-group">
+                                            <label for="hsn_code">HSN/SAC Code</label>
+                                            <input type="text" class="form-control" id="hsn_code" name="hsn_code"
+                                                placeholder="Enter HSN/SAC Code"
+                                                value="<?= isset($row['hsn_code']) ? special_echo($row['hsn_code']) : '' ?>"
+                                                required>
+                                        </div>
                                     </div>
 
                                     <div class="row">
@@ -173,13 +209,13 @@ if (isset($_GET['id'])) {
     </div>
     <?php include './includes/layouts/scripts.php'; ?>
     <script>
-    $(function() {
-        <?php
+        $(function() {
+            <?php
             if (isset($row['postal_code'])) {
                 echo '$("#postal_code").trigger("input");';
             }
             ?>
-    })
+        })
     </script>
 </body>
 

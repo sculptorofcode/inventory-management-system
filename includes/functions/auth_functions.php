@@ -106,49 +106,59 @@ if(!function_exists('getAllCustomers')){
     }
 }
 
+function getCustomersCount()
+{
+    global $conn, $table_customers;
+
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM $table_customers WHERE `user_type` = 'customer'");
+    $stmt->execute();
+
+    return $stmt->fetchColumn();
+}
+
 function update_profile($data, $customer_id)
 {
     global $conn, $table_customers, $session;
 
     $current_customer = getCustomerById($customer_id);
 
-    if(!isset($data['first_name']) || empty($data['first_name'])){
+    if(empty($data['first_name'])){
         $data['first_name'] = $current_customer['first_name'];
     }else{
         $data['first_name'] = ucwords(strtolower($data['first_name']));
     }
 
-    if(!isset($data['last_name']) || empty($data['last_name'])){
+    if(empty($data['last_name'])){
         $data['last_name'] = $current_customer['last_name'];
     }else{
         $data['last_name'] = ucwords(strtolower($data['last_name']));
     }
 
-    if(!isset($data['email']) || empty($data['email'])){
+    if(empty($data['email'])){
         $data['email'] = $current_customer['email'];
     }
 
-    if(!isset($data['phone']) || empty($data['phone'])){
+    if(empty($data['phone'])){
         $data['phone'] = $current_customer['phone'];
     }
 
-    if(!isset($data['company_name']) || empty($data['company_name'])){
+    if(empty($data['company_name'])){
         $data['company_name'] = $current_customer['company_name'];
     }
 
-    if(!isset($data['street_address']) || empty($data['street_address'])){
+    if(empty($data['street_address'])){
         $data['street_address'] = $current_customer['street_address'];
     }
 
-    if(!isset($data['state_province']) || empty($data['state_province'])){
+    if(empty($data['state_province'])){
         $data['state_province'] = $current_customer['state_province'];
     }
 
-    if(!isset($data['postal_code']) || empty($data['postal_code'])){
+    if(empty($data['postal_code'])){
         $data['postal_code'] = $current_customer['postal_code'];
     }
 
-    if(!isset($data['country']) || empty($data['country'])){
+    if(empty($data['country'])){
         $data['country'] = $current_customer['country'];
     }
 

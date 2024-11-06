@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/config/after-login.php';
-$title = 'Product List';
+$title = 'Customer List';
+
 if (isset($_REQUEST['draw'])) {
     $draw = $_REQUEST['draw'];
     $start = $_REQUEST['start'];
@@ -9,17 +10,17 @@ if (isset($_REQUEST['draw'])) {
     $order = $_REQUEST['order'][0]['column'];
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
-    $total = getProductsCount();
-    $sql = "SELECT p.*, s.supplier_name, c.category_name
-        FROM $table_products p
-        JOIN $table_suppliers s ON p.supplier_id = s.supplier_id
-        JOIN $table_product_categories c ON p.category = c.category_id";
+
+    $total = getCustomersCount();
+
+    $sql = "SELECT customer_id, first_name, last_name, full_name, email, phone, registration_date, preferred_contact_method
+            FROM tbl_customers WHERE user_type = 'customer'";
 
     if (!empty($search)) {
-        $sql .= " WHERE (p.product_name LIKE :search OR s.email LIKE :search OR s.phone LIKE :search)";
+        $sql .= " AND (first_name LIKE :search OR last_name LIKE :search OR email LIKE :search OR phone LIKE :search)";
     }
 
-    $sql .= " ORDER BY p.product_id DESC LIMIT $start, $length";
+    $sql .= " ORDER BY customer_id DESC LIMIT :start, :length";
 
     $stmt = $conn->prepare($sql);
 
@@ -28,26 +29,20 @@ if (isset($_REQUEST['draw'])) {
         $searchParam = '%' . $search . '%';
         $stmt->bindParam(':search', $searchParam);
     }
+    $stmt->bindParam(':start', $start, PDO::PARAM_INT);
+    $stmt->bindParam(':length', $length, PDO::PARAM_INT);
 
     $stmt->execute();
 
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-
+    // Process data for DataTables display
     $i = 0;
     foreach ($data as $key => $row) {
         $data[$key]['sl_no'] = ++$i;
-        foreach ($row as $k => $v) {
-            $data[$key][$k] = html_entity_decode($v);
-        }
-        $data[$key]['added_date'] = !empty($row['added_date']) ? date('d M Y', strtotime($row['added_date'])) : '';
-        $data[$key]['action'] = '<a href="product?id=' . $row['product_id'] . '" class="btn btn-sm btn-primary"><i class="fa fa-edit"></i></a>';
-        if ($row['gst_type'] > 0) {
-            $data[$key]['gst_type'] = $row['gst_type'] == 1 ? 'CGST/SGST' : ($row['gst_type'] == 2 ? 'IGST' : '');
-            $data[$key]['gst_type'] .= ' - ' . round($row['gst_rate'], 2) . '%';
-        } else {
-            $data[$key]['gst_type'] = '';
-        }
+        $data[$key]['full_name'] = htmlspecialchars($row['first_name'] . ' ' . $row['last_name']);
+        $data[$key]['registration_date'] = date('d M Y', strtotime($row['registration_date']));
+        $data[$key]['action'] = '<a href="customer?id=' . $row['customer_id'] . '" class="btn btn-sm btn-primary"><i class="fa fa-edit"></i></a>';
     }
 
     $response = [
@@ -60,6 +55,7 @@ if (isset($_REQUEST['draw'])) {
     exit;
 }
 ?>
+
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-menu-fixed" dir="ltr" data-theme="theme-default" data-assets-path="assets/"
     data-template="vertical-menu-template-free">
@@ -86,10 +82,8 @@ if (isset($_REQUEST['draw'])) {
                             </div>
                             <div class="card-body py-3">
                                 <div class="table-responsive">
-                                    <table class="table table-bordered" id="dataTable">
-                                        <thead class="bg-primary text-white">
-
-                                        </thead>
+                                    <table class="table table-bordered" id="customerTable">
+                                        <thead class="bg-primary text-white"></thead>
                                     </table>
                                 </div>
                             </div>
@@ -104,55 +98,22 @@ if (isset($_REQUEST['draw'])) {
     </div>
     <?php include './includes/layouts/scripts.php'; ?>
     <script>
-        $("#dataTable").dataTable({
+        $("#customerTable").DataTable({
             "processing": true,
             "serverSide": true,
             "ajax": {
-                url: "product-list",
+                url: "customer-list",
                 type: "POST"
             },
-            "columns": [{
-                    data: "product_id",
-                    title: "ID",
-                    orderable: false,
-                    visible: false
-                }, {
-                    data: "sl_no",
-                    title: "SL No.",
-                    orderable: false,
-                },
-                {
-                    "data": "product_name",
-                    title: "Product Name",
-                    orderable: false
-                },
-                {
-                    data: 'supplier_name',
-                    title: 'Supplier Name',
-                    orderable: false
-                },
-                {
-                    data: 'category_name',
-                    title: 'Category',
-                    orderable: false
-                },
-                {
-                    data: 'gst_type',
-                    title: 'GST Type & Rate',
-                    orderable: false
-                },
-                {
-                    "data": "added_date",
-                    title: "Added Date",
-                    orderable: false
-                },
-                {
-                    "data": "action",
-                    title: "Action",
-                    orderable: false
-                }
+            "columns": [
+                { data: "sl_no", title: "SL No.", orderable: false },
+                { data: "full_name", title: "Full Name", orderable: false },
+                { data: "email", title: "Email", orderable: false },
+                { data: "phone", title: "Phone", orderable: false },
+                { data: "registration_date", title: "Registration Date", orderable: false },
+                { data: "action", title: "Action", orderable: false }
             ]
-        })
+        });
     </script>
 </body>
 

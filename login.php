@@ -20,6 +20,9 @@ if (isset($_POST['login'])) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $db_password = $row['password_hash'];
         if (password_verify($password, $db_password)) {
+            $stmt = $conn->prepare("UPDATE $table_customers SET token = '' WHERE email = :email");
+            $stmt->bindParam(':email', $email, PDO::PARAM_STR);
+            $stmt->execute();
             $_SESSION['customer_id'] = $row['customer_id'];
             $_SESSION['logged_in'] = true;
             $res = [

@@ -1,4 +1,5 @@
 # 🏭 Inventory Management System
+![Leading Image](https://raw.githubusercontent.com/CyberSaikat/inventory-management-system/main/assets/images/banner.png)
 
 An Inventory Management System designed for managing products, suppliers, and stock transactions. This application provides functionalities to manage stock levels, track product information, and log stock movements.
 
@@ -23,71 +24,79 @@ An Inventory Management System designed for managing products, suppliers, and st
 ### Tables
 
 1. **tbl_products** 📦
-   - product_id: INT (Primary Key)
-   - product_name: VARCHAR
-   - description: TEXT
-   - category_id: INT (Foreign Key)
-   - supplier_id: INT (Foreign Key)
-   - purchase_price: DECIMAL
-   - selling_price: DECIMAL
-   - quantity: INT
-   - status: ENUM ('active', 'inactive')
-   - added_date: TIMESTAMP
-
 2. **tbl_suppliers** 🤝
-   - supplier_id: INT (Primary Key)
-   - supplier_name: VARCHAR
-   - email: VARCHAR
-   - phone: VARCHAR
-   - registration_date: TIMESTAMP
-   - street_address: VARCHAR
-   - postal_code: VARCHAR
-   - city: VARCHAR
-   - state_province: VARCHAR
-   - country: VARCHAR
-
 3. **tbl_stock** 📊
-   - stock_id: INT (Primary Key)
-   - product_id: INT (Foreign Key)
-   - quantity: INT
-   - location: VARCHAR
-   - supplier_id: INT (Foreign Key)
-   - unit_cost_price: DECIMAL
-   - last_updated: TIMESTAMP
 
 ## 🚀 Installation
 
 1. **Clone the repository** 📥
-   ```bash
-   git clone https://github.com/CyberSaikat/inventory-management-system.git
-   cd inventory-management-system
-   ```
-
 2. **Setup Database** 🗄️
-   - Create a MySQL database and import the SQL scripts for the tables provided in the `/migrations` directory.
-
 3. **Configure Database Connection** ⚙️
-   - Edit the database connection details in the `config.php` file:
-     ```php
-        define('DB_HOST', 'localhost'); // Database host
-        define('DB_USER', 'root'); // Database name
-        define('DB_PASS', ''); // Database username
-        define('DB_NAME', 'ims'); // Database password
-     ```
-
 4. **Install Dependencies** 📦
-   - Make sure to install PHPMailer using Composer:
-     ```bash
-     composer require phpmailer/phpmailer
-     ```
-
 5. **Run the Application** 🚀
-   - You can run the application using a local server setup like XAMPP, WAMP, or any server that supports PHP.
 
 ## 📖 Usage
 
 - 🌐 **Access the application** via your browser at `http://localhost/inventory-management-system`.
 - 📱 **Features** are accessible through the main navigation.
+
+## ✅ Changeable Checklist
+
+The following features can be added or enhanced to improve the Inventory Management System:
+
+- [ ] **Inventory Reports**
+   - [ ] Stock Report
+   - [ ] Sales Report
+   - [ ] Purchase Report
+   - [ ] Inventory Valuation Report
+
+- [ ] **Inventory Adjustments**
+   - [ ] Stock Adjustment
+   - [ ] Stock Transfer
+
+- [ ] **Pricing Management**
+   - [ ] Price Lists
+   - [ ] Discounts and Promotions
+   - [ ] Pricing History
+
+- [ ] **Supplier Management Enhancements**
+   - [ ] Supplier Payments
+   - [ ] Supplier Ratings and Reviews
+
+- [ ] **Product Return Management**
+   - [ ] Product Returns
+   - [ ] Return Requests
+
+- [ ] **Warehouse/Location Management**
+   - [ ] Multiple Warehouses
+   - [ ] Location Tracking
+
+- [ ] **Purchase and Sale Order Enhancements**
+   - [ ] Order Invoices
+   - [ ] Order Status Tracking
+   - [ ] Order Returns and Cancellations
+
+- [ ] **User Roles and Permissions**
+   - [ ] Role-Based Access Control
+
+- [ ] **Integration with Accounting Software**
+
+- [ ] **Barcode and QR Code Integration**
+   - [ ] Barcode Scanning
+   - [ ] Barcode Label Generation
+
+- [ ] **Supplier and Customer Communication**
+   - [ ] Email/SMS Notifications
+   - [ ] Customer Communication
+
+- [ ] **Audit Logs**
+   - [ ] Audit Trail
+
+- [ ] **Import/Export Functionality**
+   - [ ] CSV Import/Export
+
+- [ ] **Product Expiry Management (for Perishable Goods)**
+   - [ ] Expiry Tracking
 
 ## 🤝 Contributing
 

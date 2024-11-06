@@ -1,21 +1,43 @@
-MIT License
+PROPRIETARY LICENSE AGREEMENT
 
-Copyright (c) 2024 Saikat Roy
+IMPORTANT: PLEASE READ THIS LICENSE AGREEMENT CAREFULLY BEFORE USING THIS SOFTWARE.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+By using the Inventory Management System software (the "Software"), you agree to be bound by the terms and conditions of this Proprietary License Agreement. If you do not agree to these terms, do not use the Software.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+1. Grant of License
+   - You are granted a non-exclusive, non-transferable license to use the Software for internal business operations, subject to the terms of this Agreement.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+2. Restrictions
+   - You may not:
+     - Modify, distribute, or sublicense the Software to third parties.
+     - Reverse engineer, decompile, or disassemble the Software.
+     - Use the Software in a way that violates any law or infringes upon the rights of others.
+
+3. Ownership
+   - The Software is owned by Saikat Roy and is protected by copyright, trademark, and other intellectual property laws. You do not acquire any ownership rights to the Software by using it.
+
+4. Support & Maintenance
+   - Support and maintenance services are not offered for this Software.
+
+5. Fees
+   - The use of the Software requires payment of a one-time license fee of $[X]. Failure to pay the fees may result in termination of this license.
+
+6. Term & Termination
+   - This Agreement will remain in effect until terminated by either party. You may terminate this Agreement by discontinuing use of the Software and deleting all copies of it. We may terminate this Agreement at any time if you fail to comply with the terms of this Agreement.
+
+7. No Warranty
+   - The Software is provided "as is," without warranty of any kind, express or implied, including but not limited to the implied warranties of merchantability or fitness for a particular purpose.
+
+8. Limitation of Liability
+   - Saikat Roy will not be liable for any indirect, incidental, or consequential damages arising out of the use or inability to use the Software, even if Saikat Roy has been advised of the possibility of such damages.
+
+9. Governing Law
+   - This Agreement will be governed by and construed in accordance with the laws of [Insert jurisdiction].
+
+10. Miscellaneous
+    - This Agreement constitutes the entire understanding between you and Saikat Roy regarding the Software and supersedes all prior agreements and understandings, whether written or oral, relating to the Software.
+
+By using the Software, you acknowledge that you have read, understood, and agree to the terms of this Proprietary License Agreement.
+
+07/11/2024
+Saikat Roy

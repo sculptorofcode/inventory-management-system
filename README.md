@@ -1,5 +1,5 @@
 # 🏭 Inventory Management System
-![Leading Image](https://raw.githubusercontent.com/CyberSaikat/inventory-management-system/main/assets/images/banner.png)
+![Leading Image](https://raw.githubusercontent.com/CyberSaikat/inventory-management-system/refs/heads/master/assets/images/banner.png)
 
 An Inventory Management System designed for managing products, suppliers, and stock transactions. This application provides functionalities to manage stock levels, track product information, and log stock movements.
 

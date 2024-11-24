@@ -45,13 +45,13 @@ An Inventory Management System designed for managing products, suppliers, and st
 The following features can be added or enhanced to improve the Inventory Management System:
 
 - [ ] **Inventory Reports**
-   - [ ] Stock Report
-   - [ ] Sales Report
-   - [ ] Purchase Report
+   - [x] Stock Report
+   - [x] Sales Report
+   - [x] Purchase Report
    - [ ] Inventory Valuation Report
 
 - [ ] **Inventory Adjustments**
-   - [ ] Stock Adjustment
+   - [x] Stock Adjustment
    - [ ] Stock Transfer
 
 - [ ] **Pricing Management**
@@ -60,7 +60,7 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [ ] Pricing History
 
 - [ ] **Supplier Management Enhancements**
-   - [ ] Supplier Payments
+   - [x] Supplier Payments
    - [ ] Supplier Ratings and Reviews
 
 - [ ] **Product Return Management**
@@ -72,7 +72,7 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [ ] Location Tracking
 
 - [ ] **Purchase and Sale Order Enhancements**
-   - [ ] Order Invoices
+   - [x] Order Invoices
    - [ ] Order Status Tracking
    - [ ] Order Returns and Cancellations
 

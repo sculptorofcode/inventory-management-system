@@ -12,13 +12,23 @@ if (isset($_POST['logout'])) {
     exit;
 }
 
-if ($session->has('userdata')) {
+if ($session->has('userdata') && $session->has('customer_id')) {
     $userdata = $session->get('userdata');
 } else {
-    $customer_id = $session->get('customer_id');
-    $userdata = getCustomerById($customer_id);
-    if ($userdata) {
-        $session->set('userdata', $userdata);
+    if($session->has('customer_id')){
+        $customer_id = $session->get('customer_id');
+        $userdata = getCustomerById($customer_id);
+        if ($userdata) {
+            $session->set('userdata', $userdata);
+        }else{
+            $session->destroy();
+            header('Location: login.php');
+            exit;
+        }
+    }else{
+        $session->destroy();
+        header('Location: login.php');
+        exit;
     }
 }
 

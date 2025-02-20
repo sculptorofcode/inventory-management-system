@@ -159,7 +159,7 @@ function generateUniqueInvoiceNumber($prefix, $table_name, $column = '', $length
     return $prefix . '-' . str_pad($value, $length, '0', STR_PAD_LEFT);
 }
 
-function rupee($amount, $precision, $currency = '₹')
+function rupee($amount, $precision = 2, $currency = '₹')
 {
     if (round($amount, $precision) == round($amount, 0)) {
         return $currency . ' ' . number_format($amount, 0);

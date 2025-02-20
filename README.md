@@ -48,7 +48,7 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [x] Stock Report
    - [x] Sales Report
    - [x] Purchase Report
-   - [ ] Inventory Valuation Report
+   - [x] Inventory Valuation Report
 
 - [ ] **Inventory Adjustments**
    - [x] Stock Adjustment

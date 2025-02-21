@@ -3,6 +3,9 @@ require_once 'includes/config/after-login.php';
 $title = 'Add Stock';
 $form_action = 'add';
 
+include '404.php';
+die();
+
 if (isset($_POST['stock'])) {
     $form_action = filtervar($_POST['form_action']);
     $id = filtervar($_POST['id']);

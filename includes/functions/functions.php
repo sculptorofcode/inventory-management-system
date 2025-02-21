@@ -70,17 +70,17 @@ function extracted($filters, $sql, $conn, $type, $extraConditions = [])
 
     // Add additional conditions if provided
     if (!empty($extraConditions)) {
-        if(gettype($extraConditions) == 'string'){
+        if (gettype($extraConditions) == 'string') {
             $sql .= " AND $extraConditions";
-        }else{
+        } else {
             foreach ($extraConditions as $key => $value) {
                 if ($key == 'order') {
                     $sql .= " ORDER BY $value";
                 } elseif ($key == 'limit') {
                     $sql .= " LIMIT $value";
-                } elseif($key == 'group') {
+                } elseif ($key == 'group') {
                     $sql .= " GROUP BY $value";
-                } elseif($key == 'compare') {
+                } elseif ($key == 'compare') {
                     $sql .= " AND $value";
                 } else {
                     $sql .= " AND $key = :$key";
@@ -89,7 +89,7 @@ function extracted($filters, $sql, $conn, $type, $extraConditions = [])
             }
         }
     }
-    
+
     $stmt = $conn->prepare($sql);
     foreach ($params as $key => $value) {
         $stmt->bindValue($key, $value);
@@ -185,7 +185,7 @@ function order_details($order)
                             <p class="text-muted mb-0"><?= $order['inv_number'] ?></p>
                         </div>
                         <div class="col-auto col-sm-4 mb-2 d-flex gap-2 justify-content-start align-items-center">
-                            <h6 class="mb-0"><?= isset($order['customer_name']) ? "Customer" : '' ?><?= isset($order['supplier_name'] )? "Supplier" : '' ?> :</h6>
+                            <h6 class="mb-0"><?= isset($order['customer_name']) ? "Customer" : '' ?><?= isset($order['supplier_name']) ? "Supplier" : '' ?> :</h6>
                             <p class="text-muted mb-0"><?= $order['supplier_name'] ?? $order['customer_name'] ?></p>
                         </div>
                         <div class="col-auto col-sm-4 mb-2 d-flex gap-2 justify-content-start align-items-center">
@@ -294,4 +294,15 @@ function getCustomerPayments($order_id)
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     return $stmt->fetchAll();
+}
+
+function getStockByProductAndBatch($product_id, $batch_number)
+{
+    global $conn, $table_stock;
+    $sql = "SELECT * FROM $table_stock WHERE product_id = :product_id AND batch_number = :batch_number";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':product_id', $product_id);
+    $stmt->bindParam(':batch_number', $batch_number);
+    $stmt->execute();
+    return $stmt->fetch();
 }

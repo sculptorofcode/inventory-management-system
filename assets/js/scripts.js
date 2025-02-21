@@ -14,6 +14,14 @@ $(document).keydown(function(event) {
     }
 });
 
+function rupee(number) {
+    number = parseFloat(number);
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR'
+    }).format(number).replace('.00', '');
+}
+
 
 
 

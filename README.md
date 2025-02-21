@@ -44,7 +44,7 @@ An Inventory Management System designed for managing products, suppliers, and st
 
 The following features can be added or enhanced to improve the Inventory Management System:
 
-- [ ] **Inventory Reports**
+- [x] **Inventory Reports**
    - [x] Stock Report
    - [x] Sales Report
    - [x] Purchase Report

@@ -49,7 +49,7 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
         $row['purchase_price'] = $row['purchase_price'];
         $row['total_value'] = $row['total_value'];
         $row['added_date'] = !empty($row['added_on']) ? date('d M Y', strtotime($row['added_on'])) : '';
-        $row['batch_number'] = '<a href="javascript:void(0)" onclick="stockReport(\'' . $row['batch_number'] . '\',' . $row['product_id'] . ')">' . $row['batch_number'] . '</a>';
+        $row['batch_number'] = '<a href="javascript:void(0)" onclick="stockReport(\'' . $row['batch_number'] . '\',' . $row['product_id'] . ', \'' . $row['product_name'] . '\')">' . $row['batch_number'] . '</a>';
         $row['category_name'] = html_entity_decode($row['category_name']);
         $row['product_name'] = html_entity_decode($row['product_name']);
         $row['action'] = '<a href="javascript:void(0)" onclick="manageStock(' . $row['product_id'] . ', \'' . $batch_number . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bx-cog"><i/></a>';
@@ -122,6 +122,64 @@ if (isset($_REQUEST['getProducts'])) {
     $category_id = $_REQUEST['category'];
     $products = getAllProducts($category_id);
     echo json_encode($products);
+    exit;
+}
+
+if (isset($_REQUEST['manage_stock'])) {
+    $product_id = filtervar($_REQUEST['product_id']);
+    $batch_number = filtervar($_REQUEST['batch_number']);
+    $quantity = filtervar($_REQUEST['quantity']);
+    $transaction_type = filtervar($_REQUEST['transaction_type']);
+    $remarks = filtervar($_REQUEST['remarks']);
+
+    try {
+        $conn->beginTransaction();
+
+        $stock = getStockByProductAndBatch($product_id, $batch_number);
+        if (!$stock) {
+            throw new Exception('Stock not found!');
+        }
+        $stock_id = $stock['stock_id'];
+        $current_stock = $stock['quantity'];
+
+        if ($transaction_type == 'in') {
+            $new_stock = $current_stock + $quantity;
+            $stmt = $conn->prepare("UPDATE $table_stock SET quantity = :stock WHERE stock_id = :stock_id");
+            $stmt->bindParam(':stock', $new_stock);
+            $stmt->bindParam(':stock_id', $stock_id);
+            $stmt->execute();
+        } else {
+            if ($current_stock < $quantity) {
+                throw new Exception('Insufficient stock!');
+            }
+            $new_stock = $current_stock - $quantity;
+            $stmt = $conn->prepare("UPDATE $table_stock SET quantity = :stock WHERE stock_id = :stock_id");
+            $stmt->bindParam(':stock', $new_stock);
+            $stmt->bindParam(':stock_id', $stock_id);
+            $stmt->execute();
+        }
+
+        $stmt = $conn->prepare("INSERT INTO $table_stock_transactions (stock_id, product_id, quantity_change, previous_quantity, transaction_type, order_reference, notes) VALUES (:stock_id, :product_id, :quantity_change, :previous_quantity, :transaction_type, :order_reference, :notes)");
+        $stmt->bindParam(':stock_id', $stock_id);
+        $stmt->bindParam(':product_id', $product_id);
+        $stmt->bindParam(':quantity_change', $quantity);
+        $stmt->bindParam(':previous_quantity', $current_stock);
+        $stmt->bindParam(':transaction_type', $transaction_type);
+        $stmt->bindParam(':order_reference', $remarks);
+        $stmt->bindParam(':notes', $remarks);
+        $stmt->execute();
+
+        $stmt = $conn->prepare("UPDATE $table_products SET stock = :stock WHERE product_id = :product_id");
+        $stmt->bindParam(':stock', $new_stock);
+        $stmt->bindParam(':product_id', $product_id);
+        $stmt->execute();
+
+        $conn->commit();
+        echo json_encode(['status' => 'success', 'message' => 'Stock updated successfully!', 'redirect' => 'stock-list']);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
     exit;
 }
 ?>
@@ -224,26 +282,6 @@ if (isset($_REQUEST['getProducts'])) {
                                 </div>
                             </div>
                         </div>
-
-                        <div class="card mt-3">
-                            <div class="card-header border-bottom py-3">
-                                <h5 class="card-title mb-0">Stock Report</h5>
-                            </div>
-                            <div class="card-body pt-3">
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <input type="hidden" name="stock_report_product_id" id="stock_report_product_id">
-                                        <input type="hidden" name="stock_report_batch_number" id="stock_report_batch_number">
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered" id="stock-report">
-                                                <thead class="bg-primary text-white">
-                                                </thead>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                     <?php include './includes/layouts/dash-footer.php'; ?>
                     <div class="content-backdrop fade"></div>
@@ -252,6 +290,7 @@ if (isset($_REQUEST['getProducts'])) {
         </div>
         <div class="layout-overlay layout-menu-toggle"></div>
     </div>
+
     <?php include './includes/layouts/scripts.php'; ?>
     <script>
         $(function() {
@@ -310,7 +349,7 @@ if (isset($_REQUEST['getProducts'])) {
                         "title": "Unit Price",
                         "orderable": false,
                         "render": function(data) {
-                            return '₹ ' + parseFloat(data);
+                            return rupee(data);
                         }
                     },
                     {
@@ -318,7 +357,7 @@ if (isset($_REQUEST['getProducts'])) {
                         "title": "Total Value",
                         "orderable": false,
                         "render": function(data) {
-                            return '₹ ' + parseFloat(data);
+                            return rupee(data);
                         }
                     },
                     {
@@ -342,7 +381,7 @@ if (isset($_REQUEST['getProducts'])) {
                     }
 
                     $('#total-stock').html(totalStock);
-                    $('#total-value').html('₹ ' + totalValue);
+                    $('#total-value').html(rupee(totalValue));
                 }
             });
 
@@ -397,78 +436,118 @@ if (isset($_REQUEST['getProducts'])) {
                 }
             });
 
-            window.stockReportTable = $('#stock-report').DataTable({
-                "processing": true,
-                "serverSide": true,
-                "searching": false,
-                "responsive": true,
-                "ajax": {
-                    url: 'stock-list',
-                    type: 'POST',
-                    data: function(d) {
-                        d.stock_report = true;
-                        d.product_id = $('#stock_report_product_id').val();
-                        d.batch_number = $('#stock_report_batch_number').val();
-                    }
-                },
-                "columns": [{
-                        "data": "sl_no",
-                        "title": "Sl. No.",
-                        "orderable": false,
-                        width: '7%'
-                    },
-                    {
-                        "data": "product_name",
-                        "title": "Product",
-                        "orderable": false,
-                        width: '12%'
-                    },
-                    {
-                        "data": "batch_number",
-                        "title": "Batch Number",
-                        "orderable": false,
-                        width: '12%'
-                    },
-                    {
-                        "data": "added_on",
-                        "title": "Date",
-                        "orderable": false,
-                        width: '12%'
-                    },
-                    {
-                        "data": "quantity_change",
-                        "title": "Quantity Change",
-                        "orderable": false
-                    },
-                    {
-                        "data": "transaction_type",
-                        "title": "Transaction Type",
-                        "orderable": false
-                    },
-                    {
-                        "data": "order_reference",
-                        "title": "Order Reference",
-                        "orderable": false
-                    },
-                    {
-                        "data": "last_updated",
-                        "title": "Updated",
-                        "orderable": false,
-                        width: '12%'
-                    },
-                ]
-            });
-
-            $('#search').on('click', function () {
+            $('#search').on('click', function() {
                 table.ajax.reload();
             });
 
         });
 
-        function stockReport(batch_number, product_id) {
-            $('#stock_report_product_id').val(product_id);
-            $('#stock_report_batch_number').val(batch_number);
-            stockReportTable.ajax.reload();
+        function stockReport(batch_number, product_id, product_name) {
+            $.dialog({
+                title: 'Stock Report for ' + product_name + ' - ' + batch_number,
+                columnClass: 'xl',
+                content: `<div class="card" id="stock-report-card">
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <input type="hidden" name="stock_report_product_id" id="stock_report_product_id">
+                                        <input type="hidden" name="stock_report_batch_number" id="stock_report_batch_number">
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered" id="stock-report">
+                                                <thead class="bg-primary text-white">
+                                                </thead>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>`,
+                onContentReady: function() {
+                    $('#stock_report_product_id').val(product_id);
+                    $('#stock_report_batch_number').val(batch_number);
+                    $('#stock-report').DataTable({
+                        "processing": true,
+                        "serverSide": true,
+                        "searching": false,
+                        "responsive": true,
+                        "ajax": {
+                            url: 'stock-list',
+                            type: 'POST',
+                            data: function(d) {
+                                d.stock_report = true;
+                                d.product_id = product_id;
+                                d.batch_number = batch_number;
+                            }
+                        },
+                        "columns": [{
+                                "data": "sl_no",
+                                "title": "Sl. No.",
+                                "orderable": false,
+                                "width": '7%'
+                            },
+                            {
+                                "data": "last_updated",
+                                "title": "Updated",
+                                "orderable": false,
+                                "width": '18%'
+                            },
+                            {
+                                "data": "quantity_change",
+                                "title": "Quantity Change",
+                                "orderable": false
+                            },
+                            {
+                                "data": "transaction_type",
+                                "title": "Transaction Type",
+                                "orderable": false
+                            },
+                            {
+                                "data": "order_reference",
+                                "title": "Order Reference",
+                                "orderable": false
+                            },
+                            {
+                                "data": "notes",
+                                "title": "Notes",
+                                "orderable": false
+                            }
+                        ]
+                    });
+                }
+            });
+        }
+
+        function manageStock(product_id, batch_number) {
+            $.dialog({
+                title: 'Manage Stock for Product ID: ' + product_id + ' - Batch Number: ' + batch_number,
+                columnClass: 'm',
+                content: `<div class="card" id="manage-stock-card">
+                            <div class="card-body">
+                                <form id="manage-stock-form">
+                                    <input type="hidden" name="product_id" id="product_id" value="${product_id}">
+                                    <input type="hidden" name="batch_number" id="batch_number" value="${batch_number}">
+                                    <div class="form-group">
+                                        <label for="quantity">Quantity</label>
+                                        <input type="number" name="quantity" id="quantity" class="form-control" required>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="transaction_type">Transaction Type</label>
+                                        <select name="transaction_type" id="transaction_type" class="form-control form-select" required>
+                                            <option value="in">Add</option>
+                                            <option value="out">Remove</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="remarks">Remarks</label>
+                                        <input type="text" name="remarks" id="remarks" class="form-control">
+                                    </div>
+                                    <div class="form-group text-center">
+                                        <button type="submit" class="btn btn-primary" name="manage_stock">Submit</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>`,
+            });
         }
     </script>
 </body>

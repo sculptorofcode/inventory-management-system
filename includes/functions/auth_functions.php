@@ -1,82 +1,20 @@
 <?php
-function registerCustomer($firstName, $lastName, $email, $username, $password)
+function isEmailRegistered($email): bool
 {
-    global $conn, $table_customers;
+    global $conn;
 
-    $passwordHash = password_hash($password, PASSWORD_BCRYPT);
-
-    $stmt = $conn->prepare("INSERT INTO $table_customers (first_name, last_name, email, username, password_hash) 
-                            VALUES (:first_name, :last_name, :email, :username, :password_hash)");
-    $stmt->bindParam(':first_name', $firstName);
-    $stmt->bindParam(':last_name', $lastName);
-    $stmt->bindParam(':email', $email);
-    $stmt->bindParam(':username', $username);
-    $stmt->bindParam(':password_hash', $passwordHash);
-
-    return $stmt->execute();
-}
-
-function loginCustomer($usernameOrEmail, $password)
-{
-    global $conn, $table_customers;
-
-    $stmt = $conn->prepare("SELECT * FROM $table_customers WHERE `username` = :username OR `email` = :email LIMIT 1");
-    $stmt->bindParam(':username', $usernameOrEmail);
-    $stmt->bindParam(':email', $usernameOrEmail);
-    $stmt->execute();
-
-    $customer = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    if ($customer && password_verify($password, $customer['password_hash'])) {
-        $_SESSION['customer_id'] = $customer['customer_id'];
-        $_SESSION['customer_username'] = $customer['username'];
-
-        return true;
-    }
-
-    return false;
-}
-
-function isLoggedIn()
-{
-    return isset($_SESSION['customer_id']);
-}
-
-function logoutCustomer()
-{
-    session_destroy();
-    return true;
-}
-
-function updateCustomerPassword($customerId, $newPassword)
-{
-    global $conn, $table_customers;
-
-    $newPasswordHash = password_hash($newPassword, PASSWORD_BCRYPT);
-
-    $stmt = $conn->prepare("UPDATE $table_customers SET `password_hash` = :password_hash WHERE `customer_id` = :customer_id");
-    $stmt->bindParam(':password_hash', $newPasswordHash);
-    $stmt->bindParam(':customer_id', $customerId);
-
-    return $stmt->execute();
-}
-
-function isEmailRegistered($email)
-{
-    global $conn, $table_customers;
-
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM $table_customers WHERE `email` = :email");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM `tbl_customers` WHERE `email` = :email");
     $stmt->bindParam(':email', $email);
     $stmt->execute();
 
     return $stmt->fetchColumn() > 0;
 }
 
-function isMobileRegistered($mobile)
+function isMobileRegistered($mobile): bool
 {
-    global $conn, $table_customers;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM $table_customers WHERE `phone` = :mobile");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM `tbl_customers` WHERE `phone` = :mobile");
     $stmt->bindParam(':mobile', $mobile);
     $stmt->execute();
 
@@ -85,9 +23,9 @@ function isMobileRegistered($mobile)
 
 function getCustomerById($customerId)
 {
-    global $conn, $table_customers;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_customers WHERE `customer_id` = :customer_id LIMIT 1");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_customers` WHERE `customer_id` = :customer_id LIMIT 1");
     $stmt->bindParam(':customer_id', $customerId);
     $stmt->execute();
 
@@ -95,11 +33,11 @@ function getCustomerById($customerId)
 }
 
 if(!function_exists('getAllCustomers')){
-    function getAllCustomers()
+    function getAllCustomers(): array
     {
-        global $conn, $table_customers;
+        global $conn;
 
-        $stmt = $conn->prepare("SELECT * FROM $table_customers WHERE `user_type` = 'customer'");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_customers` WHERE `user_type` = 'customer'");
         $stmt->execute();
 
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -108,17 +46,17 @@ if(!function_exists('getAllCustomers')){
 
 function getCustomersCount()
 {
-    global $conn, $table_customers;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT COUNT(*) FROM $table_customers WHERE `user_type` = 'customer'");
+    $stmt = $conn->prepare("SELECT COUNT(*) FROM `tbl_customers` WHERE `user_type` = 'customer'");
     $stmt->execute();
 
     return $stmt->fetchColumn();
 }
 
-function update_profile($data, $customer_id)
+function update_profile($data, $customer_id): bool
 {
-    global $conn, $table_customers, $session;
+    global $conn, $session;
 
     $current_customer = getCustomerById($customer_id);
 
@@ -164,7 +102,7 @@ function update_profile($data, $customer_id)
 
     $full_name = $data['first_name'] . ' ' . $data['last_name'];
     
-    $stmt = $conn->prepare("UPDATE $table_customers SET 
+    $stmt = $conn->prepare("UPDATE `tbl_customers` SET 
                             `first_name` = :first_name, 
                             `last_name` = :last_name, 
                             `full_name` = :full_name,

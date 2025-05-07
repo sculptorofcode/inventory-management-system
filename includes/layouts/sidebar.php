@@ -70,6 +70,24 @@
         </li>
         <li class="menu-item">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class='menu-icon bx bxs-store-alt'></i>
+                <div data-i18n="Account Settings">Warehouse</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="warehouse" class="menu-link">
+                        <div data-i18n="WarehouseAdd">Warehouses</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="warehouse-location" class="menu-link">
+                        <div data-i18n="WarehouseList">Locations</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-cart"></i>
                 <div data-i18n="Account Settings">Purchase Order</div>
             </a>

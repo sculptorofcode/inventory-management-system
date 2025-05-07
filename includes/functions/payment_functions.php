@@ -1,5 +1,6 @@
 <?php
-function addPayment($orderId, $customerId, $paymentMethod, $amountPaid) {
+function addPayment($orderId, $customerId, $paymentMethod, $amountPaid): bool
+{
     global $conn, $table_payments;
 
     $stmt = $conn->prepare("INSERT INTO $table_payments (order_id, customer_id, payment_method, amount_paid) 
@@ -12,7 +13,8 @@ function addPayment($orderId, $customerId, $paymentMethod, $amountPaid) {
     return $stmt->execute();
 }
 
-function getPaymentsByCustomer($customerId) {
+function getPaymentsByCustomer($customerId): array
+{
     global $conn, $table_payments;
 
     $stmt = $conn->prepare("SELECT * FROM $table_payments WHERE customer_id = :customer_id");
@@ -32,7 +34,8 @@ function getPaymentByOrder($orderId) {
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function updatePaymentStatus($paymentId, $status) {
+function updatePaymentStatus($paymentId, $status): bool
+{
     global $conn, $table_payments;
 
     $stmt = $conn->prepare("UPDATE $table_payments SET transaction_status = :status WHERE payment_id = :payment_id");
@@ -42,22 +45,24 @@ function updatePaymentStatus($paymentId, $status) {
     return $stmt->execute();
 }
 
-function getAllPaymentsWithOrders() {
-    global $conn, $table_payments, $table_purchase_orders, $table_customers;
+function getAllPaymentsWithOrders(): array
+{
+    global $conn, $table_payments;
 
     $stmt = $conn->prepare("
         SELECT p.payment_id, p.payment_method, p.amount_paid, p.transaction_status, p.payment_date, 
                o.order_id, o.total_amount, c.first_name, c.last_name, c.email 
         FROM $table_payments p
-        JOIN $table_purchase_orders o ON p.order_id = o.order_id
-        JOIN $table_customers c ON p.customer_id = c.customer_id
+        JOIN `tbl_purchase_order` o ON p.order_id = o.order_id
+        JOIN `tbl_customers` c ON p.customer_id = c.customer_id
     ");
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function deletePayment($paymentId) {
+function deletePayment($paymentId): bool
+{
     global $conn, $table_payments;
 
     $stmt = $conn->prepare("DELETE FROM $table_payments WHERE payment_id = :payment_id");

@@ -10,14 +10,15 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
 
-    $total = getCount($table_products, [], 'stock > 0');
+    $total = getCount('tbl_products', [], 'stock > 0');
 
-    $sql = "SELECT p.*,sp.supplier_name,c.category_name,s.*, (s.quantity * p.purchase_price) as total_value
-            FROM $table_stock s
-            JOIN $table_products p ON s.product_id = p.product_id
-            JOIN $table_product_categories c ON p.category = c.category_id
-            JOIN $table_suppliers sp ON p.supplier_id = sp.supplier_id
-            WHERE p.stock > 0";
+    $sql = "SELECT p.*,sp.supplier_name,c.category_name,s.*, (s.quantity * p.purchase_price) as total_value, w.warehouse_name
+            FROM `tbl_stock` s
+            LEFT JOIN `tbl_products` p ON s.product_id = p.product_id
+            LEFT JOIN `tbl_product_categories` c ON p.category = c.category_id
+            LEFT JOIN `tbl_suppliers` sp ON p.supplier_id = sp.supplier_id
+            LEFT JOIN `tbl_warehouse` w ON s.warehouse_id = w.warehouse_id
+            WHERE s.quantity > 0";
 
     if ($search) {
         $sql .= " AND (p.product_name LIKE '%$search%' OR c.category_name LIKE '%$search%' OR sp.supplier_name LIKE '%$search%')";
@@ -35,15 +36,16 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
         $sql .= " AND s.batch_number LIKE '%{$_REQUEST['batch_number']}%'";
     }
 
-    $sql .= " ORDER BY p.{$columns[$order]['data']} $order_dir LIMIT $start, $length";
+    $sql .= " ORDER BY s.stock_id DESC LIMIT $start, $length";
 
     $stmt = $conn->prepare($sql);
     $stmt->execute();
     $data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $sl = $start + 1;
-    $data = array_map(function ($row) use (&$sl) {
+    foreach ($data as &$row) {
         $batch_number = $row['batch_number'];
+        $assign_warehouse = '<button class="btn btn-primary btn-sm px-2" onclick="assignWarehouse(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')">Assign</button>';
         $row['sl_no'] = $sl++;
         $row['stock'] = $row['stock'] ?? 0;
         $row['purchase_price'] = $row['purchase_price'];
@@ -52,9 +54,13 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
         $row['batch_number'] = '<a href="javascript:void(0)" onclick="stockReport(\'' . $row['batch_number'] . '\',' . $row['product_id'] . ', \'' . $row['product_name'] . '\')">' . $row['batch_number'] . '</a>';
         $row['category_name'] = html_entity_decode($row['category_name']);
         $row['product_name'] = html_entity_decode($row['product_name']);
-        $row['action'] = '<a href="javascript:void(0)" onclick="manageStock(' . $row['product_id'] . ', \'' . $batch_number . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bx-cog"><i/></a>';
-        return $row;
-    }, $data);
+        $row['warehouse_name'] = !empty($row['warehouse_name']) ? html_entity_decode($row['warehouse_name']) : $assign_warehouse;
+
+        $row['action'] = '<div class="d-flex gap-2">';
+        $row['action'] .= '<a href="javascript:void(0)" onclick="manageStock(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bxs-cog"></i></a>';
+        $row['action'] .= '<a href="javascript:void(0)" onclick="moveToLocation(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bx-transfer"><i/></a>';
+        $row['action'] .= '</div>';
+    }
 
     $response = [
         'draw' => $draw,
@@ -78,10 +84,10 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_report'])) {
     $product_id = $_REQUEST['product_id'];
     $batch_number = $_REQUEST['batch_number'];
 
-    $sql = "SELECT *,$table_products.product_name FROM $table_stock_transactions 
-            LEFT JOIN $table_stock ON $table_stock.stock_id = $table_stock_transactions.stock_id
-            LEFT JOIN $table_products ON $table_products.product_id = $table_stock.product_id
-            WHERE $table_stock_transactions.product_id = :product_id AND $table_stock.batch_number = :batch_number";
+    $sql = "SELECT *,`tbl_products`.product_name FROM tbl_stock_transactions 
+            LEFT JOIN `tbl_stock` ON `tbl_stock`.stock_id = tbl_stock_transactions.stock_id
+            LEFT JOIN `tbl_products` ON `tbl_products`.product_id = `tbl_stock`.product_id
+            WHERE tbl_stock_transactions.product_id = :product_id AND `tbl_stock`.batch_number = :batch_number";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':product_id', $product_id);
     $stmt->bindParam(':batch_number', $batch_number);
@@ -89,7 +95,7 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_report'])) {
 
     $total = $stmt->rowCount();
 
-    $sql .= " ORDER BY $table_stock_transactions.created_at DESC LIMIT $start, $length";
+    $sql .= " ORDER BY tbl_stock_transactions.created_at DESC LIMIT $start, $length";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':product_id', $product_id);
     $stmt->bindParam(':batch_number', $batch_number);
@@ -125,6 +131,41 @@ if (isset($_REQUEST['getProducts'])) {
     exit;
 }
 
+if (isset($_REQUEST['manageStock'])) {
+    $product_id = $_REQUEST['product_id'];
+    $batch_number = $_REQUEST['batch_number'];
+    $stock = getStockByProductAndBatch($product_id, $batch_number); ?>
+    <div class="container">
+        <div class="row">
+            <div class="col-md-12">
+                <input type="hidden" name="product_id" id="product_id" value="<?= $product_id ?>">
+                <input type="hidden" name="batch_number" id="batch_number" value="<?= $batch_number ?>">
+                <div class="form-group">
+                    <label for="quantity">Quantity</label>
+                    <input type="number" name="quantity" id="quantity" class="form-control" placeholder="Quantity">
+                </div>
+                <div class="form-group">
+                    <label for="transaction_type">Transaction Type</label>
+                    <select name="transaction_type" id="transaction_type" class="form-select">
+                        <option value="" disabled selected>Select Transaction Type</option>
+                        <option value="in">In</option>
+                        <option value="out">Out</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="remarks">Remarks</label>
+                    <input type="text" name="remarks" id="remarks" class="form-control" placeholder="Remarks">
+                </div>
+                <div class="text-center">
+                    <button class="btn btn-primary" id="manage_stock">Manage Stock</button>
+                </div>
+            </div>
+        </div>
+    </div>
+<?php
+    exit;
+}
+
 if (isset($_REQUEST['manage_stock'])) {
     $product_id = filtervar($_REQUEST['product_id']);
     $batch_number = filtervar($_REQUEST['batch_number']);
@@ -144,7 +185,7 @@ if (isset($_REQUEST['manage_stock'])) {
 
         if ($transaction_type == 'in') {
             $new_stock = $current_stock + $quantity;
-            $stmt = $conn->prepare("UPDATE $table_stock SET quantity = :stock WHERE stock_id = :stock_id");
+            $stmt = $conn->prepare("UPDATE `tbl_stock` SET quantity = :stock WHERE stock_id = :stock_id");
             $stmt->bindParam(':stock', $new_stock);
             $stmt->bindParam(':stock_id', $stock_id);
             $stmt->execute();
@@ -153,13 +194,13 @@ if (isset($_REQUEST['manage_stock'])) {
                 throw new Exception('Insufficient stock!');
             }
             $new_stock = $current_stock - $quantity;
-            $stmt = $conn->prepare("UPDATE $table_stock SET quantity = :stock WHERE stock_id = :stock_id");
+            $stmt = $conn->prepare("UPDATE `tbl_stock` SET quantity = :stock WHERE stock_id = :stock_id");
             $stmt->bindParam(':stock', $new_stock);
             $stmt->bindParam(':stock_id', $stock_id);
             $stmt->execute();
         }
 
-        $stmt = $conn->prepare("INSERT INTO $table_stock_transactions (stock_id, product_id, quantity_change, previous_quantity, transaction_type, order_reference, notes) VALUES (:stock_id, :product_id, :quantity_change, :previous_quantity, :transaction_type, :order_reference, :notes)");
+        $stmt = $conn->prepare("INSERT INTO tbl_stock_transactions (stock_id, product_id, quantity_change, previous_quantity, transaction_type, order_reference, notes) VALUES (:stock_id, :product_id, :quantity_change, :previous_quantity, :transaction_type, :order_reference, :notes)");
         $stmt->bindParam(':stock_id', $stock_id);
         $stmt->bindParam(':product_id', $product_id);
         $stmt->bindParam(':quantity_change', $quantity);
@@ -169,7 +210,7 @@ if (isset($_REQUEST['manage_stock'])) {
         $stmt->bindParam(':notes', $remarks);
         $stmt->execute();
 
-        $stmt = $conn->prepare("UPDATE $table_products SET stock = :stock WHERE product_id = :product_id");
+        $stmt = $conn->prepare("UPDATE `tbl_products` SET stock = :stock WHERE product_id = :product_id");
         $stmt->bindParam(':stock', $new_stock);
         $stmt->bindParam(':product_id', $product_id);
         $stmt->execute();
@@ -180,6 +221,99 @@ if (isset($_REQUEST['manage_stock'])) {
         $conn->rollBack();
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
     }
+    exit;
+}
+
+if (isset($_REQUEST['assignWarehouse'])) {
+    $product_id = $_REQUEST['product_id'];
+    $batch_number = $_REQUEST['batch_number'];
+    $stock = getStockByProductAndBatch($product_id, $batch_number);
+    $warehouses = getAllWarehouses(); ?>
+    <form class="container" method="POST">
+        <div class="row">
+            <div class="col-md-12">
+                <input type="hidden" name="product_id" id="product_id" value="<?= $product_id ?>">
+                <input type="hidden" name="batch_number" id="batch_number" value="<?= $batch_number ?>">
+                <div class="form-group mb-3">
+                    <label for="warehouse">Warehouse</label>
+                    <select name="warehouse" id="warehouse" class="form-select" required>
+                        <option value="" disabled selected>Select Warehouse</option>
+                        <?php foreach ($warehouses as $warehouse) { ?>
+                            <option value="<?= $warehouse['warehouse_id'] ?>"><?= html_entity_decode($warehouse['warehouse_name']) ?></option>
+                        <?php } ?>
+                    </select>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary" id="assign_warehouse" name="assign_warehouse">Assign
+                        Warehouse
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+    <?php
+    exit;
+}
+
+if (isset($_POST['assign_warehouse'])) {
+    $product_id = filtervar($_POST['product_id']);
+    $batch_number = filtervar($_POST['batch_number']);
+    $warehouse_id = filtervar($_POST['warehouse']);
+
+    try {
+        $conn->beginTransaction();
+
+        $stock = getStockByProductAndBatch($product_id, $batch_number);
+        if (!$stock) {
+            throw new Exception('Stock not found!');
+        }
+        $stock_id = $stock['stock_id'];
+
+        $stmt = $conn->prepare("UPDATE `tbl_stock` SET warehouse_id = :warehouse WHERE stock_id = :stock_id");
+        $stmt->bindParam(':warehouse', $warehouse_id);
+        $stmt->bindParam(':stock_id', $stock_id);
+        $stmt->execute();
+
+        $conn->commit();
+        echo json_encode(['status' => 'success', 'message' => 'Warehouse assigned successfully!', 'function' => 'reloadPage']);
+    } catch (Exception $e) {
+        $conn->rollBack();
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
+    exit;
+}
+
+if (isset($_REQUEST['moveToLocation'])) {
+    $product_id = $_REQUEST['product_id'];
+    $batch_number = $_REQUEST['batch_number'];
+    $stock = getStockByProductAndBatch($product_id, $batch_number);
+
+    if (!$stock) { ?>
+        <div class="alert alert-danger">Stock not found!</div>
+    <?php exit;
+    }
+
+    $warehouses = getAllWarehouses(); ?>
+    <form class="container" method="POST">
+        <div class="row">
+            <div class="col-md-12">
+                <input type="hidden" name="product_id" id="product_id" value="<?= $product_id ?>">
+                <input type="hidden" name="batch_number" id="batch_number" value="<?= $batch_number ?>">
+                <div class="form-group mb-3">
+                    <label for="location">Location</label>
+                    <select name="location" id="location" required>
+                        <option value="" disabled selected>Select Location</option>
+                    </select>
+                </div>
+                <div class="text-center">
+                    <button type="submit" class="btn btn-primary" id="move_to_location" name="move_to_location">Move to
+                        Location
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+<?php
     exit;
 }
 ?>
@@ -242,7 +376,7 @@ if (isset($_REQUEST['manage_stock'])) {
                                             placeholder="Batch Number" list="batch_number">
                                         <datalist id="batch_number">
                                             <?php
-                                            $stmt = $conn->prepare("SELECT DISTINCT batch_number FROM $table_stock");
+                                            $stmt = $conn->prepare("SELECT DISTINCT batch_number FROM `tbl_stock`");
                                             $stmt->execute();
                                             $batches = $stmt->fetchAll();
                                             foreach (
@@ -269,7 +403,7 @@ if (isset($_REQUEST['manage_stock'])) {
                                                 </thead>
                                                 <tfoot>
                                                     <tr>
-                                                        <th colspan="5" style="text-align:right">Total:</th>
+                                                        <th colspan="6" style="text-align:right">Total:</th>
                                                         <th id="total-stock"></th>
                                                         <th></th>
                                                         <th id="total-value"></th>
@@ -340,12 +474,18 @@ if (isset($_REQUEST['manage_stock'])) {
                         "orderable": false
                     },
                     {
-                        "data": "stock",
+                        "data": "warehouse_name",
+                        "title": "Warehouse",
+                        "orderable": false,
+                        "className": "text-center"
+                    },
+                    {
+                        "data": "quantity",
                         "title": "Stock",
                         "orderable": false
                     },
                     {
-                        "data": "purchase_price",
+                        "data": "unit_cost_price",
                         "title": "Unit Price",
                         "orderable": false,
                         "render": function(data) {
@@ -440,10 +580,16 @@ if (isset($_REQUEST['manage_stock'])) {
                 table.ajax.reload();
             });
 
+            window.reloadPage = function() {
+                if (window.currentDialog) {
+                    window.currentDialog.close();
+                }
+                table.ajax.reload();
+            }
         });
 
         function stockReport(batch_number, product_id, product_name) {
-            $.dialog({
+            window.currentDialog = $.dialog({
                 title: 'Stock Report for ' + product_name + ' - ' + batch_number,
                 columnClass: 'xl',
                 content: `<div class="card" id="stock-report-card">
@@ -517,36 +663,34 @@ if (isset($_REQUEST['manage_stock'])) {
             });
         }
 
-        function manageStock(product_id, batch_number) {
-            $.dialog({
-                title: 'Manage Stock for Product ID: ' + product_id + ' - Batch Number: ' + batch_number,
+        function manageStock(product_id, batch_number, product_name) {
+            window.currentDialog = $.dialog({
+                title: 'Manage Stock for Product: ' + product_name + ' (' + batch_number + ')',
                 columnClass: 'm',
-                content: `<div class="card" id="manage-stock-card">
-                            <div class="card-body">
-                                <form id="manage-stock-form">
-                                    <input type="hidden" name="product_id" id="product_id" value="${product_id}">
-                                    <input type="hidden" name="batch_number" id="batch_number" value="${batch_number}">
-                                    <div class="form-group">
-                                        <label for="quantity">Quantity</label>
-                                        <input type="number" name="quantity" id="quantity" class="form-control" required>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="transaction_type">Transaction Type</label>
-                                        <select name="transaction_type" id="transaction_type" class="form-control form-select" required>
-                                            <option value="in">Add</option>
-                                            <option value="out">Remove</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="remarks">Remarks</label>
-                                        <input type="text" name="remarks" id="remarks" class="form-control">
-                                    </div>
-                                    <div class="form-group text-center">
-                                        <button type="submit" class="btn btn-primary" name="manage_stock">Submit</button>
-                                    </div>
-                                </form>
-                            </div>
-                        </div>`,
+                content: `url:stock-list?manageStock=true&product_id=${product_id}&batch_number=${batch_number}`,
+            });
+        }
+
+        function assignWarehouse(product_id, batch_number, product_name) {
+            window.currentDialog = $.dialog({
+                title: 'Assign Warehouse for Product: ' + product_name + ' (' + batch_number + ')',
+                columnClass: 'm',
+                content: `url:stock-list?assignWarehouse=true&product_id=${product_id}&batch_number=${batch_number}`,
+            });
+        }
+
+        function moveToLocation(product_id, batch_number, product_name) {
+            window.currentDialog = $.dialog({
+                title: 'Move to Location for Product: ' + product_name + ' (' + batch_number + ')',
+                columnClass: 'm',
+                content: `url:stock-list?moveToLocation=true&product_id=${product_id}&batch_number=${batch_number}`,
+                onContentReady: function() {
+                    $('#location').selectize({
+                        create: false,
+                        dropdownParent: 'body',
+                        sortField: 'text'
+                    });
+                }
             });
         }
     </script>

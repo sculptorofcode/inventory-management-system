@@ -31,12 +31,11 @@ if (isset($_POST['purchase'])) {
 
     if (count($product_id_arr) > 0) {
         try {
-
-            $inv_number = generateUniqueInvoiceNumber('PO', $table_purchase_orders, 'order_id', 4);
+            $inv_number = generateUniqueInvoiceNumber('PO', 'tbl_purchase_order', 'order_id', 4);
 
             $conn->beginTransaction();
 
-            $stmt = $conn->prepare("INSERT INTO $table_purchase_orders SET supplier_id = :supplier_id, inv_number = :inv_number, order_date = :order_date, total_products = :total_products, total_quantity = :total_quantity, total_cost_price = :total_cost_price, total_gst = :total_gst, discount = :discount, total_amount = :total_amount, paid_amount = :paid_amount, due_amount = :due_amount, pay_mode = :pay_mode, notes = :notes");
+            $stmt = $conn->prepare("INSERT INTO `tbl_purchase_order` SET supplier_id = :supplier_id, inv_number = :inv_number, order_date = :order_date, total_products = :total_products, total_quantity = :total_quantity, total_cost_price = :total_cost_price, total_gst = :total_gst, discount = :discount, total_amount = :total_amount, paid_amount = :paid_amount, due_amount = :due_amount, pay_mode = :pay_mode, notes = :notes");
             $stmt->bindParam(':supplier_id', $supplier_id, PDO::PARAM_INT);
             $stmt->bindParam(':inv_number', $inv_number, PDO::PARAM_STR);
             $stmt->bindParam(':order_date', $order_date, PDO::PARAM_STR);
@@ -56,7 +55,7 @@ if (isset($_POST['purchase'])) {
             if ($result) {
                 $purchase_order_id = $conn->lastInsertId();
 
-                $stmt = $conn->prepare("INSERT INTO $table_supplier_payments SET supplier_id = :supplier_id, purchase_order_id = :purchase_order_id, amount = :amount, payment_method = :pay_mode, notes = :notes, payment_date = :order_date, payment_status = 'completed'");
+                $stmt = $conn->prepare("INSERT INTO `tbl_supplier_payments` SET supplier_id = :supplier_id, purchase_order_id = :purchase_order_id, amount = :amount, payment_method = :pay_mode, notes = :notes, payment_date = :order_date, payment_status = 'completed'");
                 $stmt->bindParam(':supplier_id', $supplier_id, PDO::PARAM_INT);
                 $stmt->bindParam(':purchase_order_id', $purchase_order_id, PDO::PARAM_INT);
                 $stmt->bindParam(':amount', $paid_amount, PDO::PARAM_STR);
@@ -65,7 +64,7 @@ if (isset($_POST['purchase'])) {
                 $stmt->bindParam(':order_date', $order_date, PDO::PARAM_STR);
                 $result = $stmt->execute();
 
-                $stmt = $conn->prepare("INSERT INTO $table_purchase_orders_details SET purchase_order_id = :purchase_order_id, product_id = :product_id, quantity = :quantity, unit_cost_price = :unit_cost_price, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code, sub_total = :sub_total, total = :total");
+                $stmt = $conn->prepare("INSERT INTO `tbl_purchase_order_details` SET purchase_order_id = :purchase_order_id, product_id = :product_id, quantity = :quantity, unit_cost_price = :unit_cost_price, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code, sub_total = :sub_total, total = :total");
 
                 foreach ($product_id_arr as $key => $product_id) {
                     $stmt->bindParam(':purchase_order_id', $purchase_order_id, PDO::PARAM_INT);
@@ -106,7 +105,7 @@ if (isset($_POST['purchase'])) {
 
 if (isset($_GET['id'])) {
     $id = filtervar($_GET['id']);
-    $sql = "SELECT * FROM $table_purchase_orders WHERE order_id = :order_id";
+    $sql = "SELECT * FROM `tbl_purchase_order` WHERE order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $id, PDO::PARAM_INT);
     $stmt->execute();
@@ -123,7 +122,7 @@ if (isset($_POST['getUnitCostPrice'])) {
     $productId = filtervar($_POST['productId']);
     if ($productId) {
         $product = getProductById($productId);
-        $stock_count = getCount($table_stock, ['product_id' => $productId]);
+        $stock_count = getCount('tbl_stock', ['product_id' => $productId]);
         $batch_number = generateUniqueBatchNumber('B', intval($stock_count) + 1);
         $product['batch_number'] = $batch_number;
         $product['purchase_price'] = round($product['purchase_price'], 2);
@@ -227,7 +226,7 @@ if (isset($_POST['getProducts'])) {
                                                     </thead>
                                                     <tbody id="product_details">
                                                     <?php
-                                                    $entries = isset($row) ? getTable($table_purchase_orders_details,['purchase_order_id' => $row['order_id']]) : [];
+                                                    $entries = isset($row) ? getTable('tbl_purchase_order_details',['purchase_order_id' => $row['order_id']]) : [];
                                                     $i = 0;
                                                     do {
                                                         $entry = $entries[$i] ?? null;

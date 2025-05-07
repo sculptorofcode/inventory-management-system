@@ -49,10 +49,10 @@ function welcome_email_template($full_name, $email, $creation_date)
     return $body;
 }
 
-function get_countries()
+function get_countries(): array
 {
-    global $conn, $table_countries;
-    $sql = "SELECT * FROM $table_countries";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_countries`";
     $stmt = $conn->prepare($sql);
     $stmt->execute();
     return $stmt->fetchAll();
@@ -118,18 +118,27 @@ function getTable($table_name, $filters = [], $extraConditions = [])
     return extracted($filters, $sql, $conn, 'table', $extraConditions);
 }
 
+// getValue('tbl_warehouse_location', 'name', ['location_id' => $row['parent_location_id']]);
+function getValue($table_name, $column, $filters = [], $extraConditions = [])
+{
+    global $conn;
+    $sql = "SELECT $column FROM $table_name WHERE 1=1";
+    $result = extracted($filters, $sql, $conn, 'table', $extraConditions);
+    return $result[0][$column];
+}
+
 
 function special_echo($data)
 {
     echo html_entity_decode($data);
 }
 
-function generateUniqueBatchNumber($prefix, $value, $length = 4)
+function generateUniqueBatchNumber($prefix, $value, $length = 4): string
 {
     return $prefix . '-' . str_pad($value, $length, '0', STR_PAD_LEFT);
 }
 
-function generateUniqueInvoiceNumber($prefix, $table_name, $column = '', $length = 4, $extraConditions = [])
+function generateUniqueInvoiceNumber($prefix, $table_name, $column = '', $length = 4, $extraConditions = []): string
 {
     global $conn;
     if (!empty($column)) {
@@ -159,7 +168,7 @@ function generateUniqueInvoiceNumber($prefix, $table_name, $column = '', $length
     return $prefix . '-' . str_pad($value, $length, '0', STR_PAD_LEFT);
 }
 
-function rupee($amount, $precision = 2, $currency = '₹')
+function rupee($amount, $precision = 2, $currency = '₹'): string
 {
     if (round($amount, $precision) == round($amount, 0)) {
         return $currency . ' ' . number_format($amount, 0);
@@ -169,8 +178,9 @@ function rupee($amount, $precision = 2, $currency = '₹')
 }
 
 // Specially for this software
-function order_details($order)
+function order_details($order, $order_type): void
 {
+    global $conn;
 ?>
     <div class="row">
         <div class="col-md-12">
@@ -213,11 +223,25 @@ function order_details($order)
                     </div>
                     <?php
                     if ($order['status'] === 'delivered') {
+                        if($order_type === 'purchase'){
+                            $sql = "SELECT `tbl_warehouse`.warehouse_name 
+                                FROM `tbl_stock_transactions`
+                                LEFT JOIN `tbl_stock` ON `tbl_stock_transactions`.stock_id = `tbl_stock`.stock_id
+                                LEFT JOIN `tbl_warehouse` ON `tbl_stock`.warehouse_id = `tbl_warehouse`.warehouse_id
+                                WHERE `order_reference` = :order_id";
+                            $stmt = $conn->prepare($sql);
+                            $stmt->bindParam(':order_id', $order['inv_number']);
+                            $stmt->execute();
+                            $warehouse = $stmt->fetch();
+                            $shippingAddress = $warehouse['warehouse_name'];
+                        }else{
+                            $shippingAddress = $order['shipping_address'];
+                        }
                     ?>
                         <div class="row mt-2">
                             <div class="col-md-6">
                                 <h6 class="mb-0">Order Delivered</h6>
-                                <p class="text-muted mb-0">Order delivered on <?= date('d-m-Y', strtotime($order['delivery_date'])) ?> at <?= $order['shipping_address'] ?></p>
+                                <p class="text-muted mb-0">Order delivered on <?= date('d-m-Y', strtotime($order['delivery_date'])) ?> at <?= $shippingAddress ?></p>
                             </div>
                         </div>
                     <?php
@@ -230,22 +254,32 @@ function order_details($order)
 <?php
 }
 
+function getRow(string $string, string $string1, $warehouse_id)
+{
+    global $conn;
+    $sql = "SELECT * FROM $string WHERE $string1 = :warehouse_id";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':warehouse_id', $warehouse_id);
+    $stmt->execute();
+    return $stmt->fetch();
+}
+
 function getPurchaseOrderById($order_id)
 {
-    global $conn, $table_purchase_orders;
-    $sql = "SELECT * FROM $table_purchase_orders WHERE order_id = :order_id";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_purchase_order` WHERE order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     return $stmt->fetch();
 }
 
-function getPurchaseOrderDetails($order_id)
+function getPurchaseOrderDetails($order_id): array
 {
-    global $conn, $table_purchase_orders_details, $table_products;
-    $sql = "SELECT `$table_purchase_orders_details`.*, $table_products.`product_name` 
-            FROM $table_purchase_orders_details
-            LEFT JOIN $table_products ON $table_purchase_orders_details.product_id = $table_products.product_id
+    global $conn;
+    $sql = "SELECT `tbl_purchase_order_details`.*, `tbl_products`.`product_name` 
+            FROM `tbl_purchase_order_details`
+            LEFT JOIN `tbl_products` ON `tbl_purchase_order_details`.product_id = `tbl_products`.product_id
             WHERE purchase_order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
@@ -255,8 +289,8 @@ function getPurchaseOrderDetails($order_id)
 
 function getSupplierPayments($order_id)
 {
-    global $conn, $table_supplier_payments;
-    $sql = "SELECT * FROM $table_supplier_payments WHERE purchase_order_id = :order_id";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_supplier_payments` WHERE purchase_order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -265,20 +299,20 @@ function getSupplierPayments($order_id)
 
 function getSaleOrderById($order_id)
 {
-    global $conn, $table_sales_orders;
-    $sql = "SELECT * FROM $table_sales_orders WHERE order_id = :order_id";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_sale_order` WHERE order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     return $stmt->fetch();
 }
 
-function getSaleOrderDetails($order_id)
+function getSaleOrderDetails($order_id): array
 {
-    global $conn, $table_sales_orders_details, $table_products;
-    $sql = "SELECT `$table_sales_orders_details`.*, $table_products.`product_name` 
-            FROM $table_sales_orders_details
-            LEFT JOIN $table_products ON $table_sales_orders_details.product_id = $table_products.product_id
+    global $conn;
+    $sql = "SELECT `tbl_sale_order_details`.*, `tbl_products`.`product_name` 
+            FROM `tbl_sale_order_details`
+            LEFT JOIN `tbl_products` ON `tbl_sale_order_details`.product_id = `tbl_products`.product_id
             WHERE sale_order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
@@ -286,10 +320,10 @@ function getSaleOrderDetails($order_id)
     return $stmt->fetchAll();
 }
 
-function getCustomerPayments($order_id)
+function getCustomerPayments($order_id): array
 {
-    global $conn, $table_customer_payments;
-    $sql = "SELECT * FROM $table_customer_payments WHERE sale_order_id = :order_id";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_customer_payments` WHERE sale_order_id = :order_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -298,11 +332,37 @@ function getCustomerPayments($order_id)
 
 function getStockByProductAndBatch($product_id, $batch_number)
 {
-    global $conn, $table_stock;
-    $sql = "SELECT * FROM $table_stock WHERE product_id = :product_id AND batch_number = :batch_number";
+    global $conn;
+    $sql = "SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND batch_number = :batch_number";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':product_id', $product_id);
     $stmt->bindParam(':batch_number', $batch_number);
     $stmt->execute();
     return $stmt->fetch();
+}
+
+function getAllWarehouses(): array
+{
+    global $conn;
+    $sql = "SELECT * FROM `tbl_warehouse`";
+    $stmt = $conn->prepare($sql);
+    $stmt->execute();
+    return $stmt->fetchAll();
+}
+
+function getLocationsByTypeAndParent($type, $parent_id): array
+{
+    global $conn;
+    $sql = "SELECT * FROM `tbl_warehouse_location` WHERE `type` = :type";
+    if($type == "Zone"){
+        $sql .= " AND warehouse_id = :parent_id";
+    }else{
+        $sql .= " AND parent_location_id = :parent_id";
+    }
+    $sql .= " ORDER BY name ASC";
+    $stmt = $conn->prepare($sql);
+    $stmt->bindParam(':type', $type);
+    $stmt->bindParam(':parent_id', $parent_id);
+    $stmt->execute();
+    return $stmt->fetchAll();
 }

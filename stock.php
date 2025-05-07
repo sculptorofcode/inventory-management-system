@@ -18,7 +18,7 @@ if (isset($_POST['stock'])) {
     $unitCostPrice = filtervar($_POST['unit_cost_price']);
 
     if ($form_action == 'add') {
-        $sql = "SELECT * FROM $table_stock WHERE product_id = :product_id AND batch_number = :batch_number";
+        $sql = "SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND batch_number = :batch_number";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':product_id', $productId, PDO::PARAM_STR);
         $stmt->bindParam(':batch_number', $batch_number, PDO::PARAM_STR);
@@ -30,7 +30,7 @@ if (isset($_POST['stock'])) {
             exit;
         }
 
-        $sql = "INSERT INTO $table_stock SET product_id = :product_id, batch_number = :batch_number, quantity = :quantity, location = :location, supplier_id = :supplier_id, unit_cost_price = :unit_cost_price";
+        $sql = "INSERT INTO `tbl_stock` SET product_id = :product_id, batch_number = :batch_number, quantity = :quantity, location = :location, supplier_id = :supplier_id, unit_cost_price = :unit_cost_price";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':product_id', $productId, PDO::PARAM_STR);
         $stmt->bindParam(':batch_number', $batch_number, PDO::PARAM_STR);
@@ -46,7 +46,7 @@ if (isset($_POST['stock'])) {
         $prev_quantity = $prev_stock['quantity'];
         $user_id = $userdata['customer_id'];
 
-        $sql = "INSERT `$table_stock_transactions` SET `product_id`=':product_id',`quantity_change`=':quantity',`previous_quantity`=':previous_quantity',`transaction_type`=':transaction_type',`notes`=':notes',`user_id`=':user_id',`transaction_location`=':transaction_location',`order_reference`=':order_reference'";
+        $sql = "INSERT `tbl_stock_transactions` SET `product_id`=':product_id',`quantity_change`=':quantity',`previous_quantity`=':previous_quantity',`transaction_type`=':transaction_type',`notes`=':notes',`user_id`=':user_id',`transaction_location`=':transaction_location',`order_reference`=':order_reference'";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':product_id', $productId, PDO::PARAM_STR);
         $stmt->bindParam(':quantity', $quantity, PDO::PARAM_INT);
@@ -58,7 +58,7 @@ if (isset($_POST['stock'])) {
         $stmt->bindParam(':order_reference', $batch_number, PDO::PARAM_STR);
         $result = $stmt->execute();
 
-        $sql = "UPDATE $table_products SET quantity = quantity + :quantity WHERE product_id = :product_id";
+        $sql = "UPDATE `tbl_products` SET quantity = quantity + :quantity WHERE product_id = :product_id";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':quantity', $quantity, PDO::PARAM_INT);
         $stmt->bindParam(':product_id', $productId, PDO::PARAM_STR);
@@ -77,7 +77,7 @@ if (isset($_POST['stock'])) {
 
 if (isset($_GET['id'])) {
     $id = filtervar($_GET['id']);
-    $sql = "SELECT * FROM $table_stock WHERE stock_id = :stock_id";
+    $sql = "SELECT * FROM `tbl_stock` WHERE stock_id = :stock_id";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':stock_id', $id, PDO::PARAM_INT);
     $stmt->execute();
@@ -90,7 +90,7 @@ if (isset($_POST['getUnitCostPrice'])) {
     if ($productId) {
 
         $product = getProductById($productId);
-        $stock_count = getCount($table_stock, ['product_id' => $productId]);
+        $stock_count = getCount('tbl_stock', ['product_id' => $productId]);
         $batch_number = generateUniqueBatchNumber('B', intval($stock_count) + 1);
         echo json_encode(['unit_cost_price' => round($product['purchase_price'], 2), 'batch_number' => $batch_number, 'supplier_id' => $product['supplier_id']]);
     } else {

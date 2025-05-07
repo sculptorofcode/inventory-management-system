@@ -11,7 +11,7 @@ if (isset($_POST['login'])) {
     $email = filtervar($_POST['email']);
     $password = filtervar($_POST['password']);
 
-    $sql = "SELECT * FROM $table_customers WHERE email = :email";
+    $sql = "SELECT * FROM `tbl_customers` WHERE email = :email";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':email', $email, PDO::PARAM_STR);
     $stmt->execute();
@@ -20,7 +20,7 @@ if (isset($_POST['login'])) {
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $db_password = $row['password_hash'];
         if (password_verify($password, $db_password)) {
-            $stmt = $conn->prepare("UPDATE $table_customers SET token = '' WHERE email = :email");
+            $stmt = $conn->prepare("UPDATE `tbl_customers` SET token = '' WHERE email = :email");
             $stmt->bindParam(':email', $email, PDO::PARAM_STR);
             $stmt->execute();
             $_SESSION['customer_id'] = $row['customer_id'];

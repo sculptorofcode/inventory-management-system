@@ -10,7 +10,7 @@ if (isset($_REQUEST['draw'])) {
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
     $total = getSupplierCount();
-    $sql = "SELECT * FROM $table_suppliers";
+    $sql = "SELECT * FROM `tbl_suppliers`";
 
     if (!empty($search)) {
         $sql .= " WHERE (supplier_name LIKE '%$search%' OR email LIKE '%$search%' OR phone LIKE '%$search%')";

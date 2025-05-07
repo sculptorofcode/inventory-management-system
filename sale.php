@@ -21,8 +21,8 @@ if (isset($_POST['sale'])) {
 
     $conn->beginTransaction();
     try {
-        $inv_number = generateUniqueInvoiceNumber('SO', $table_sales_orders, 'order_id', 4);
-        $stmt = $conn->prepare("INSERT INTO $table_sales_orders SET 
+        $inv_number = generateUniqueInvoiceNumber('SO', 'tbl_sale_order', 'order_id', 4);
+        $stmt = $conn->prepare("INSERT INTO `tbl_sale_order` SET 
             customer_id = :customer_id, 
             inv_number = :inv_number,
             order_date = :order_date, 
@@ -58,14 +58,15 @@ if (isset($_POST['sale'])) {
         if($result) {
             $sale_order_id = $conn->lastInsertId();
 
-            $stmt = $conn->prepare("INSERT INTO $table_customer_payments SET 
-                customer_id = :customer_id, 
-                sale_order_id = :sale_order_id, 
-                amount = :amount, 
-                payment_method = :pay_mode, 
-                notes = :notes, 
-                payment_date = :order_date, 
-                payment_status = 'completed'");
+            $stmt = $conn->prepare("INSERT INTO `tbl_customer_payments` 
+                                            SET 
+                                                customer_id = :customer_id, 
+                                                sale_order_id = :sale_order_id, 
+                                                amount = :amount, 
+                                                payment_method = :pay_mode, 
+                                                notes = :notes, 
+                                                payment_date = :order_date, 
+                                                payment_status = 'completed'");
 
             $stmt->bindParam(':customer_id', $customer_id);
             $stmt->bindParam(':sale_order_id', $sale_order_id);
@@ -86,7 +87,7 @@ if (isset($_POST['sale'])) {
                 $sub_total = filtervar($_POST['sub_total'][$index]);
                 $total = filtervar($_POST['total'][$index]);
 
-                $stmt = $conn->prepare("INSERT INTO $table_sales_orders_details SET 
+                $stmt = $conn->prepare("INSERT INTO `tbl_sale_order_details` SET 
                     sale_order_id = :sale_order_id, 
                     product_id = :product_id, 
                     quantity = :quantity, 
@@ -126,7 +127,7 @@ if (isset($_POST['getUnitCostPrice'])) {
     $productId = filtervar($_POST['productId']);
     if ($productId) {
         $product = getProductById($productId);
-        $stmt = $conn->prepare("SELECT * FROM $table_stock WHERE product_id = :product_id AND quantity > 0 ORDER BY stock_id DESC LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND quantity > 0 ORDER BY stock_id DESC LIMIT 1");
         $stmt->execute(['product_id' => $productId]);
         if ($stmt->rowCount() === 0) {
             echo json_encode(['status' => 'error', 'message' => 'Product not in stock']);
@@ -221,7 +222,7 @@ if (isset($_POST['getProducts'])) {
                                     <div class="col-md-12">
                                         <div class="table-responsive-xxl">
                                             <table class="table table-bordered">
-                                                <thead class="text-nowrap">
+                                                <thead class="text-nowrap bg-primary text-white text-center">
                                                 <tr>
                                                     <th style="width: 18%;">Product & Quantity</th>
                                                     <th>Price</th>
@@ -238,18 +239,25 @@ if (isset($_POST['getProducts'])) {
                                                 do {
                                                     $entry = $entries[$i] ?? null;
                                                     ?>
-
                                                     <tr class="clone_row">
                                                         <td>
                                                             <select name="product_id[]" id="product_id_1"
                                                                     class="selectize product_id mb-3" required>
                                                                 <option value="">Select Product</option>
                                                                 <?php
-                                                                $products = getAllProducts(null, 1);
+                                                                $sql = 'SELECT * 
+                                                                        FROM `tbl_stock`
+                                                                        LEFT JOIN `tbl_products` ON `tbl_stock`.`product_id` = `tbl_products`.`product_id` 
+                                                                        WHERE tbl_stock.quantity > 0
+                                                                        ORDER BY `tbl_stock`.`stock_id` DESC';
+                                                                $query = $conn->prepare($sql);
+                                                                $query->execute();
+                                                                $products = $query->fetchAll(PDO::FETCH_ASSOC);
                                                                 foreach ($products as $product) {
                                                                     $product['product_name'] = html_entity_decode($product['product_name']);
                                                                     $selected = $entry && $entry['product_id'] == $product['product_id'] ? 'selected' : '';
-                                                                    echo "<option value='{$product['product_id']}' $selected>{$product['product_name']}</option>";
+                                                                    $cost_price = rupee($product['unit_cost_price']);
+                                                                    echo "<option value='{$product['product_id']}' $selected>{$product['product_name']} - $cost_price</option>";
                                                                 }
                                                                 ?>
                                                             </select>

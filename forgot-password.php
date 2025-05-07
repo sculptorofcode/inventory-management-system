@@ -2,7 +2,7 @@
 $title = "Forgot Password";
 if (isset($_POST['reset_password'])) {
     $email = filtervar($_POST['email']);
-    $sql = "SELECT * FROM $table_customers WHERE email = :email";
+    $sql = "SELECT * FROM `tbl_customers` WHERE email = :email";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':email', $email);
     $stmt->execute();
@@ -10,7 +10,7 @@ if (isset($_POST['reset_password'])) {
     if ($user) {
         $token = bin2hex(random_bytes(50));
         $otp = substr($token, 0, 6);
-        $sql = "UPDATE $table_customers SET token = :token WHERE email = :email";
+        $sql = "UPDATE `tbl_customers` SET token = :token WHERE email = :email";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':token', $otp);
         $stmt->bindParam(':email', $email);
@@ -112,7 +112,7 @@ if (isset($_POST['verify_otp'])) {
     $email = filtervar($_POST['email']);
     $otp = filtervar($_POST['otp']);
 
-    $sql = "SELECT * FROM $table_customers WHERE email = :email AND token = :otp";
+    $sql = "SELECT * FROM `tbl_customers` WHERE email = :email AND token = :otp";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':email', $email);
     $stmt->bindParam(':otp', $otp);
@@ -133,7 +133,7 @@ if (isset($_POST['set_password'])) {
     $email = filtervar($_POST['email']);
     $new_password = password_hash(filtervar($_POST['new_password']), PASSWORD_DEFAULT);
 
-    $sql = "UPDATE $table_customers SET `password_hash` = :password, `token` = NULL WHERE `email` = :email";
+    $sql = "UPDATE `tbl_customers` SET `password_hash` = :password, `token` = NULL WHERE `email` = :email";
     $stmt = $conn->prepare($sql);
     $stmt->bindParam(':password', $new_password);
     $stmt->bindParam(':email', $email);

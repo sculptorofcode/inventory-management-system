@@ -11,9 +11,9 @@ if (isset($_REQUEST['draw'])) {
     $columns = $_REQUEST['columns'];
     $total = getProductsCount();
     $sql = "SELECT p.*, s.supplier_name, c.category_name
-        FROM $table_products p
-        JOIN $table_suppliers s ON p.supplier_id = s.supplier_id
-        JOIN $table_product_categories c ON p.category = c.category_id";
+        FROM `tbl_products` p
+        JOIN `tbl_suppliers` s ON p.supplier_id = s.supplier_id
+        JOIN `tbl_product_categories` c ON p.category = c.category_id";
 
     if (!empty($search)) {
         $sql .= " WHERE (p.product_name LIKE :search OR s.email LIKE :search OR s.phone LIKE :search)";

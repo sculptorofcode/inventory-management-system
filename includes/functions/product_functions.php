@@ -1,10 +1,10 @@
 <?php
 
-function addProduct($supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code)
+function addProduct($supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("INSERT INTO $table_products SET supplier_id = :supplier_id, product_name = :product_name, category = :category, purchase_price = :purchase_price, selling_price = :selling_price, quantity = :quantity, description = :description, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code");
+    $stmt = $conn->prepare("INSERT INTO `tbl_products` SET supplier_id = :supplier_id, product_name = :product_name, category = :category, purchase_price = :purchase_price, selling_price = :selling_price, quantity = :quantity, description = :description, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->bindParam(':product_name', $productName);
     $stmt->bindParam(':category', $category);
@@ -19,11 +19,11 @@ function addProduct($supplierId, $productName, $category, $purchasePrice, $selli
     return $stmt->execute();
 }
 
-function updateProduct($productId, $supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code)
+function updateProduct($productId, $supplierId, $productName, $category, $purchasePrice, $sellingPrice, $quantity, $description, $gst_type, $gst_rate, $hsn_code): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products 
+    $stmt = $conn->prepare("UPDATE `tbl_products` 
                             SET supplier_id = :supplier_id, product_name = :product_name, category = :category, purchase_price = :purchase_price, 
                                 selling_price = :selling_price, quantity = :quantity, description = :description, gst_type = :gst_type, gst_rate = :gst_rate, hsn_code = :hsn_code
                             WHERE product_id = :product_id");
@@ -42,11 +42,11 @@ function updateProduct($productId, $supplierId, $productName, $category, $purcha
     return $stmt->execute();
 }
 
-function deleteProduct($productId)
+function deleteProduct($productId): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("DELETE FROM $table_products WHERE product_id = :product_id");
+    $stmt = $conn->prepare("DELETE FROM `tbl_products` WHERE product_id = :product_id");
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
@@ -54,20 +54,20 @@ function deleteProduct($productId)
 
 function getProductById($productId)
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE product_id = :product_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_products` WHERE product_id = :product_id");
     $stmt->bindParam(':product_id', $productId);
     $stmt->execute();
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getAllProducts($category = null, $min_stock = null)
+function getAllProducts($category = null, $min_stock = null): array
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $sql = "SELECT * FROM $table_products WHERE 1=1";
+    $sql = "SELECT * FROM `tbl_products` WHERE 1 = 1";
     if ($category) {
         $sql .= " AND category = '$category'";
     }
@@ -77,113 +77,106 @@ function getAllProducts($category = null, $min_stock = null)
     $stmt = $conn->prepare($sql);
     $stmt->execute();
 
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $records = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($records as $key => $record) {
+        $records[$key]['product_name'] = html_entity_decode($record['product_name']);
+    }
+    return $records;
 }
 
-function getProductsByCategory($category)
+function getProductsByCategory($category): array
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE category = :category");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_products` WHERE category = :category");
     $stmt->bindParam(':category', $category);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getProductsBySupplier($supplierId)
+function getProductsBySupplier($supplierId): array
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE supplier_id = :supplier_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_products` WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function updateProductQuantity($productId, $newQuantity)
+function updateProductQuantity($productId, $newQuantity): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET quantity = :quantity WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET quantity = :quantity WHERE product_id = :product_id");
     $stmt->bindParam(':quantity', $newQuantity);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductSellingPrice($productId, $newSellingPrice)
+function updateProductSellingPrice($productId, $newSellingPrice): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET selling_price = :selling_price WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET selling_price = :selling_price WHERE product_id = :product_id");
     $stmt->bindParam(':selling_price', $newSellingPrice);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductPurchasePrice($productId, $newPurchasePrice)
+function updateProductPurchasePrice($productId, $newPurchasePrice): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET purchase_price = :purchase_price WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET purchase_price = :purchase_price WHERE product_id = :product_id");
     $stmt->bindParam(':purchase_price', $newPurchasePrice);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductsCategory($productId, $newCategory)
+function updateProductsCategory($productId, $newCategory): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET category = :category WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET category = :category WHERE product_id = :product_id");
     $stmt->bindParam(':category', $newCategory);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductSupplier($productId, $newSupplierId)
+function updateProductSupplier($productId, $newSupplierId): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET supplier_id = :supplier_id WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET supplier_id = :supplier_id WHERE product_id = :product_id");
     $stmt->bindParam(':supplier_id', $newSupplierId);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductDescription($productId, $newDescription)
+function updateProductDescription($productId, $newDescription): bool
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET description = :description WHERE product_id = :product_id");
+    $stmt = $conn->prepare("UPDATE `tbl_products` SET description = :description WHERE product_id = :product_id");
     $stmt->bindParam(':description', $newDescription);
     $stmt->bindParam(':product_id', $productId);
 
     return $stmt->execute();
 }
 
-function updateProductStatus($productId, $status)
+function searchProducts($search): array
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_products SET status = :status WHERE product_id = :product_id");
-    $stmt->bindParam(':status', $status);
-    $stmt->bindParam(':product_id', $productId);
-
-    return $stmt->execute();
-}
-
-function searchProducts($search)
-{
-    global $table_products, $conn;
-
-    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE product_name LIKE :search");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_products` WHERE product_name LIKE :search");
     $stmt->bindValue(':search', '%' . $search . '%');
     $stmt->execute();
 
@@ -191,9 +184,9 @@ function searchProducts($search)
 }
 
 function getProductsCount($filters = []) {
-    global $table_products, $conn;
+    global $conn;
 
-    $sql = "SELECT COUNT(*) FROM $table_products WHERE 1=1 ";
+    $sql = "SELECT COUNT(*) FROM `tbl_products` WHERE 1=1 ";
     $params = [];
     if (!empty($filters['category'])) {
         $sql .= " AND category = :category";
@@ -223,22 +216,22 @@ function getProductsCount($filters = []) {
 
 // Product Category Functions
 
-function addProductCategory($categoryName, $description = '')
+function addProductCategory($categoryName, $description = ''): bool
 {
-    global $table_product_categories, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("INSERT INTO $table_product_categories SET `category_name` = :category_name, `description` = :description");
+    $stmt = $conn->prepare("INSERT INTO `tbl_product_categories` SET `category_name` = :category_name, `description` = :description");
     $stmt->bindParam(':category_name', $categoryName);
     $stmt->bindParam(':description', $description);
 
     return $stmt->execute();
 }
 
-function updateProductCategory($categoryId, $categoryName, $description = '')
+function updateProductCategory($categoryId, $categoryName, $description = ''): bool
 {
-    global $table_product_categories, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("UPDATE $table_product_categories SET `category_name` = :category_name, `description` = :description WHERE `category_id` = :category_id");
+    $stmt = $conn->prepare("UPDATE `tbl_product_categories` SET `category_name` = :category_name, `description` = :description WHERE `category_id` = :category_id");
     $stmt->bindParam(':category_name', $categoryName);
     $stmt->bindParam(':description', $description);
     $stmt->bindParam(':category_id', $categoryId);
@@ -246,11 +239,11 @@ function updateProductCategory($categoryId, $categoryName, $description = '')
     return $stmt->execute();
 }
 
-function deleteProductCategory($categoryId)
+function deleteProductCategory($categoryId): bool
 {
-    global $table_product_categories, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("DELETE FROM $table_product_categories WHERE `category_id` = :category_id");
+    $stmt = $conn->prepare("DELETE FROM `tbl_product_categories` WHERE `category_id` = :category_id");
     $stmt->bindParam(':category_id', $categoryId);
 
     return $stmt->execute();
@@ -258,30 +251,30 @@ function deleteProductCategory($categoryId)
 
 function getProductCategoryById($categoryId)
 {
-    global $table_product_categories, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_product_categories WHERE `category_id` = :category_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_product_categories` WHERE `category_id` = :category_id");
     $stmt->bindParam(':category_id', $categoryId);
     $stmt->execute();
 
     return $stmt->fetch(PDO::FETCH_ASSOC);
 }
 
-function getAllProductCategories()
+function getAllProductCategories(): array
 {
-    global $table_product_categories, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_product_categories");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_product_categories`");
     $stmt->execute();
 
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
-function getProductsBySupplierId($supplierId)
+function getProductsBySupplierId($supplierId): array
 {
-    global $table_products, $conn;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_products WHERE supplier_id = :supplier_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_products` WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->execute();
 

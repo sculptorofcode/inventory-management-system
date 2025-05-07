@@ -16,9 +16,9 @@ function createSupplier(
     $tan,
     $cin
 ) {
-    global $conn, $table_suppliers;
+    global $conn;
 
-    $stmt = $conn->prepare("INSERT INTO $table_suppliers 
+    $stmt = $conn->prepare("INSERT INTO `tbl_suppliers` 
                                     SET supplier_name = :supplier_name, 
                                         email = :email, 
                                         phone = :phone, 
@@ -52,9 +52,9 @@ function createSupplier(
 }
 
 function getSupplierCount() {
-    global $conn, $table_suppliers;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT COUNT(supplier_id) AS supplier_count FROM $table_suppliers");
+    $stmt = $conn->prepare("SELECT COUNT(supplier_id) AS supplier_count FROM `tbl_suppliers`");
     $stmt->execute();
 
     return $stmt->fetch(PDO::FETCH_ASSOC)['supplier_count'];
@@ -62,9 +62,9 @@ function getSupplierCount() {
 
 // Function to get a list of all suppliers
 function getSuppliers() {
-    global $conn, $table_suppliers;
+    global $conn;
 
-    $stmt = $conn->prepare("SELECT * FROM $table_suppliers");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_suppliers`");
     $stmt->execute();
     
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -88,9 +88,9 @@ function updateSupplier(
     $tan,
     $cin
 ) {
-    global $conn, $table_suppliers;
+    global $conn;
     
-    $stmt = $conn->prepare("UPDATE $table_suppliers 
+    $stmt = $conn->prepare("UPDATE `tbl_suppliers` 
                             SET supplier_name = :supplier_name, 
                                 email = :email, 
                                 phone = :phone, 
@@ -122,9 +122,9 @@ function updateSupplier(
 
 // Function to delete a supplier
 function deleteSupplier($supplierId) {
-    global $conn, $table_suppliers;
+    global $conn;
 
-    $stmt = $conn->prepare("DELETE FROM $table_suppliers WHERE supplier_id = :supplier_id");
+    $stmt = $conn->prepare("DELETE FROM `tbl_suppliers` WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
 
     return $stmt->execute();
@@ -132,10 +132,11 @@ function deleteSupplier($supplierId) {
 
 // Function to get a single supplier's details by ID
 function getSupplierById($supplierId) {
-    global $conn, $table_suppliers;
+    global $conn;
 
     $stmt = $conn->prepare("SELECT *
-                                  FROM $table_suppliers WHERE supplier_id = :supplier_id");
+                                  FROM `tbl_suppliers` 
+                                  WHERE supplier_id = :supplier_id");
     $stmt->bindParam(':supplier_id', $supplierId);
     $stmt->execute();
 

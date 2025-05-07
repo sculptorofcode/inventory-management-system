@@ -164,7 +164,7 @@ if (isset($_POST['register'])) {
 
             // Insert query
 
-            $sql = "INSERT INTO $table_customers SET $data, `password_hash` = :password_hash";
+            $sql = "INSERT INTO `tbl_customers` SET $data, `password_hash` = :password_hash";
         } else {
             echo json_encode(['status' => 'error', 'message' => 'Email and Phone number not verified']);
             exit();
@@ -176,7 +176,7 @@ if (isset($_POST['register'])) {
         }
 
         // Update query
-        $sql = "UPDATE $table_customers SET $data WHERE `customer_id` = :customer_id";
+        $sql = "UPDATE `tbl_customers` SET $data WHERE `customer_id` = :customer_id";
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Invalid action']);
         exit();

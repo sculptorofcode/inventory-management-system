@@ -37,8 +37,8 @@ if (isset($_REQUEST['draw'])) {
     $order = $_REQUEST['order'][0]['column'];
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
-    $total = getCount($table_product_categories, []);
-    $sql = "SELECT * FROM $table_product_categories";
+    $total = getCount('tbl_product_categories', []);
+    $sql = "SELECT * FROM `tbl_product_categories`";
 
     if (!empty($search)) {
         $sql .= " WHERE (category_name LIKE '%$search%' OR description LIKE '%$search%')";

@@ -10,8 +10,8 @@ if (isset($_REQUEST['draw'])) {
     $order_dir = $_REQUEST['order'][0]['dir'];
     $columns = $_REQUEST['columns'];
 
-    $query = "SELECT po.*, s.supplier_name, (SELECT COUNT(*) FROM `$table_supplier_payments` WHERE `$table_supplier_payments`.`purchase_order_id` = po.`order_id` ) AS total_payments FROM $table_purchase_orders po
-    LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
+    $query = "SELECT po.*, s.supplier_name, (SELECT COUNT(*) FROM `tbl_supplier_payments` WHERE `tbl_supplier_payments`.`purchase_order_id` = po.`order_id` ) AS total_payments FROM `tbl_purchase_order` po
+    LEFT JOIN `tbl_suppliers` s ON po.supplier_id = s.supplier_id
     WHERE 1 = 1";
 
     $stmt = $conn->prepare($query);
@@ -27,7 +27,7 @@ if (isset($_REQUEST['draw'])) {
     }
 
     if (!empty($_REQUEST['product'])) {
-        $query .= " AND po.order_id IN (SELECT purchase_order_id FROM $table_purchase_orders_details WHERE product_id = " . $_REQUEST['product'] . ")";
+        $query .= " AND po.order_id IN (SELECT purchase_order_id FROM tbl_purchase_order_details WHERE product_id = " . $_REQUEST['product'] . ")";
     }
 
     if (!empty($_REQUEST['status'])) {
@@ -65,7 +65,7 @@ if (isset($_REQUEST['draw'])) {
         }
 
         $action = '';
-        # $action .= '<a href="javascript:void(0)" onclick="chnageStatus(' . $row['order_id'] . ')" class="btn btn-primary btn-sm px-2 py-1"><i class="bx bx-edit"></i></a>';
+        # $action .= '<a href="javascript:void(0)" onclick="changeStatus(' . $row['order_id'] . ')" class="btn btn-primary btn-sm px-2 py-1"><i class="bx bx-edit"></i></a>';
         $action .= '<a href="purchase-print?order_id=' . $row['order_id'] . '" target="_blank" class="btn btn-info btn-sm px-2 py-1"><i class="bx bx-printer"></i></a>';
 
 
@@ -97,24 +97,24 @@ if (isset($_REQUEST['draw'])) {
     exit;
 }
 
-if (isset($_REQUEST['order-deatils'])) {
+if (isset($_REQUEST['order-details'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
+    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM `tbl_purchase_order` po
+            LEFT JOIN `tbl_suppliers` s ON po.supplier_id = s.supplier_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
-    $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders_details WHERE purchase_order_id = :order_id");
+    $stmt = $conn->prepare("SELECT * FROM tbl_purchase_order_details WHERE purchase_order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
     ?>
     <div class="container">
-        <?php order_details($order); ?>
+        <?php order_details($order, 'purchase'); ?>
         <div class="table-responsive">
             <table class="table table-bordered">
-                <thead>
+                <thead class="bg-primary text-white">
                 <tr>
                     <th>Sl. No.</th>
                     <th>Product</th>
@@ -176,8 +176,8 @@ if (isset($_REQUEST['order-deatils'])) {
 
 if (isset($_REQUEST['change-status'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
+    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM `tbl_purchase_order` po
+            LEFT JOIN `tbl_suppliers` s ON po.supplier_id = s.supplier_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -190,7 +190,7 @@ if (isset($_REQUEST['change-status'])) {
                 <div class="col-md-12">
                     <form action="purchase-list" method="post" class="form">
                         <input type="hidden" name="order_id" value="<?= $order_id ?>">
-                        <?php order_details($order); ?>
+                        <?php order_details($order, 'purchase'); ?>
                         <div class="form-group row">
                             <label class="col-sm-3 col-form-label">Status</label>
                             <div class="col-sm-9">
@@ -214,11 +214,22 @@ if (isset($_REQUEST['change-status'])) {
                                        value="<?= ($order['delivery_date'] != '0000-00-00' ? $order['delivery_date'] : '') ?>">
                             </div>
                         </div>
+                        <!-- Removed shipping_address field -->
                         <div class="form-group row d-none delivery-group">
-                            <label class="col-sm-3 col-form-label">Delivered At</label>
+                            <label class="col-sm-3 col-form-label">Warehouse</label>
                             <div class="col-sm-9">
-                    <textarea name="shipping_address" class="form-control"
-                              placeholder="Enter Delivery Address"><?= $order['shipping_address'] ?></textarea>
+                                <select name="warehouse_id" class="form-select">
+                                    <option value="">Select Warehouse</option>
+                                    <?php
+                                    $stmt = $conn->prepare("SELECT * FROM tbl_warehouse WHERE is_deleted = 0");
+                                    $stmt->execute();
+                                    while ($warehouse = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                                        ?>
+                                        <option value="<?= $warehouse['warehouse_id'] ?>"><?= $warehouse['warehouse_name'] ?></option>
+                                        <?php
+                                    }
+                                    ?>
+                                </select>
                             </div>
                         </div>
                         <div class="form-group row">
@@ -255,7 +266,7 @@ if (isset($_REQUEST['change-status'])) {
                         </thead>
                         <tbody>
                         <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_purchase_order_status_log WHERE order_id = :order_id ORDER BY `changed_at` DESC");
+                        $stmt = $conn->prepare("SELECT * FROM `tbl_purchase_order_status_log` WHERE order_id = :order_id ORDER BY `changed_at` DESC");
                         $stmt->bindParam(':order_id', $order_id);
                         $stmt->execute();
                         $sl_no = 1;
@@ -296,9 +307,9 @@ if (isset($_REQUEST['change-status'])) {
             });
             $(document).on('change', '.order-status', function () {
                 if ($(this).val() === 'delivered') {
-                    $('.delivery-group').removeClass('d-none').find('input, textarea').prop('required', true);
+                    $('.delivery-group').removeClass('d-none').find('input, textarea, select').prop('required', true);
                 } else {
-                    $('.delivery-group').addClass('d-none').find('input, textarea').prop('required', false);
+                    $('.delivery-group').addClass('d-none').find('input, textarea, select').prop('required', false);
                 }
             })
         })
@@ -311,29 +322,28 @@ if (isset($_POST['change_status'])) {
     $order_id = $_POST['order_id'];
     $status = $_POST['status'];
     $delivery_date = filtervar($_POST['delivery_date']);
-    $shipping_address = filtervar($_POST['shipping_address']);
     $remarks = filtervar($_POST['remarks']);
+    $warehouse_id = filtervar($_POST['warehouse_id']);
     try {
         $conn->beginTransaction();
 
-        $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders WHERE order_id = :order_id");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_purchase_order` WHERE order_id = :order_id");
         $stmt->bindParam(':order_id', $order_id);
         $stmt->execute();
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
-        $sql = "UPDATE $table_purchase_orders SET status = :status";
+        $sql = "UPDATE `tbl_purchase_order` SET status = :status";
         if ($status === 'delivered') {
-            $sql .= ", delivery_date = :delivery_date, shipping_address = :shipping_address";
+            $sql .= ", delivery_date = :delivery_date";
         }
         $sql .= " WHERE order_id = :order_id";
         $stmt = $conn->prepare($sql);
         $stmt->bindParam(':status', $status);
         if ($status === 'delivered') {
             $stmt->bindParam(':delivery_date', $delivery_date);
-            $stmt->bindParam(':shipping_address', $shipping_address);
         }
         $stmt->bindParam(':order_id', $order_id);
         if ($stmt->execute()) {
-            $stmt = $conn->prepare("INSERT INTO $table_purchase_order_status_log SET order_id = :order_id, old_status = :old_status, new_status = :new_status, changed_by = :changed_by, remarks = :remarks");
+            $stmt = $conn->prepare("INSERT INTO `tbl_purchase_order_status_log` SET order_id = :order_id, old_status = :old_status, new_status = :new_status, changed_by = :changed_by, remarks = :remarks");
             $stmt->bindParam(':order_id', $order_id);
             $stmt->bindParam(':old_status', $order['status']);
             $stmt->bindParam(':new_status', $status);
@@ -341,25 +351,26 @@ if (isset($_POST['change_status'])) {
             $stmt->bindParam(':remarks', $remarks);
             if ($stmt->execute()) {
                 if ($status === 'delivered') {
-                    $order_details_query = $conn->prepare("SELECT * FROM $table_purchase_orders_details WHERE purchase_order_id = :order_id");
+                    $order_details_query = $conn->prepare("SELECT * FROM tbl_purchase_order_details WHERE purchase_order_id = :order_id");
                     $order_details_query->bindParam(':order_id', $order_id);
                     $order_details_query->execute();
                     while ($order_detail = $order_details_query->fetch(PDO::FETCH_ASSOC)) {
                         $product = getProductById($order_detail['product_id']);
-                        $stmt = $conn->prepare("UPDATE $table_products SET stock = stock + :quantity WHERE product_id = :product_id");
+                        $stmt = $conn->prepare("UPDATE `tbl_products` SET stock = stock + :quantity WHERE product_id = :product_id");
                         $stmt->bindParam(':quantity', $order_detail['quantity']);
                         $stmt->bindParam(':product_id', $order_detail['product_id']);
                         $stmt->execute();
                         $batch_number = generateUniqueInvoiceNumber('B', 'tbl_stock', 'stock_id', 4, ['product_id' => $order_detail['product_id']]);
-                        $stmt = $conn->prepare("INSERT INTO $table_stock SET product_id = :product_id, batch_number = :batch_number, quantity = :quantity, supplier_id = :supplier_id, unit_cost_price = :unit_cost_price");
+                        $stmt = $conn->prepare("INSERT INTO `tbl_stock` SET product_id = :product_id, batch_number = :batch_number, quantity = :quantity, supplier_id = :supplier_id, unit_cost_price = :unit_cost_price, warehouse_id = :warehouse_id");
                         $stmt->bindParam(':product_id', $order_detail['product_id']);
                         $stmt->bindParam(':batch_number', $batch_number);
                         $stmt->bindParam(':quantity', $order_detail['quantity']);
                         $stmt->bindParam(':supplier_id', $order['supplier_id']);
                         $stmt->bindParam(':unit_cost_price', $order_detail['unit_cost_price']);
+                        $stmt->bindParam(':warehouse_id', $warehouse_id);
                         if ($stmt->execute()) {
                             $stock_id = $conn->lastInsertId();
-                            $stmt = $conn->prepare("INSERT INTO $table_stock_transactions SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
+                            $stmt = $conn->prepare("INSERT INTO `tbl_stock_transactions` SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
                             $transaction_type = 'in';
                             $notes = 'Stock added for order #' . $order['inv_number'];
                             $stmt->bindParam(':product_id', $order_detail['product_id']);
@@ -393,15 +404,15 @@ if (isset($_POST['change_status'])) {
 
 if (isset($_REQUEST['pay-due'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM $table_purchase_orders po
-            LEFT JOIN $table_suppliers s ON po.supplier_id = s.supplier_id
+    $stmt = $conn->prepare("SELECT po.*, s.supplier_name FROM `tbl_purchase_order` po
+            LEFT JOIN `tbl_suppliers` s ON po.supplier_id = s.supplier_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
     ?>
     <div class="container">
-        <?php order_details($order); ?>
+        <?php order_details($order, 'purchase'); ?>
         <div class="row">
             <div class="col-md-12">
                 <?php if ($order['due_amount'] > 0) { ?>
@@ -466,7 +477,7 @@ if (isset($_REQUEST['pay-due'])) {
                         </thead>
                         <tbody>
                         <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_supplier_payments WHERE purchase_order_id = :order_id ORDER BY `created_at` DESC");
+                        $stmt = $conn->prepare("SELECT * FROM `tbl_supplier_payments` WHERE purchase_order_id = :order_id ORDER BY `created_at` DESC");
                         $stmt->bindParam(':order_id', $order_id);
                         $stmt->execute();
                         $sl_no = 1;
@@ -527,13 +538,13 @@ if (isset($_POST['pay_due'])) {
         echo json_encode(['status' => 'error', 'message' => 'Invalid amount']);
         exit;
     } else {
-        $stmt = $conn->prepare("SELECT * FROM $table_purchase_orders WHERE order_id = :order_id");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_purchase_order` WHERE order_id = :order_id");
         $stmt->bindParam(':order_id', $order_id);
         $stmt->execute();
         $order = $stmt->fetch(PDO::FETCH_ASSOC);
         $due_amount = $order['due_amount'] - intval($pay_amount);
         $total_paid = $order['paid_amount'] + intval($pay_amount);
-        $stmt = $conn->prepare("INSERT INTO $table_supplier_payments SET supplier_id = :supplier_id, purchase_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes, payment_status = :payment_status");
+        $stmt = $conn->prepare("INSERT INTO `tbl_supplier_payments` SET supplier_id = :supplier_id, purchase_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes, payment_status = :payment_status");
         $payment_status = "completed";
         $stmt->bindParam(':supplier_id', $order['supplier_id']);
         $stmt->bindParam(':order_id', $order_id);
@@ -543,7 +554,7 @@ if (isset($_POST['pay_due'])) {
         $stmt->bindParam(':notes', $remarks);
         $stmt->bindParam(':payment_status', $payment_status);
         if ($stmt->execute()) {
-            $stmt = $conn->prepare("UPDATE $table_purchase_orders SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
+            $stmt = $conn->prepare("UPDATE `tbl_purchase_order` SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
             $stmt->bindParam(':due_amount', $due_amount);
             $stmt->bindParam(':total_paid', $total_paid);
             $stmt->bindParam(':order_id', $order_id);
@@ -597,7 +608,7 @@ if (isset($_POST['pay_due'])) {
                                             <select name="supplier" id="supplier" class="form-select">
                                                 <option value="">Select Supplier</option>
                                                 <?php
-                                                $stmt = $conn->prepare("SELECT * FROM $table_suppliers");
+                                                $stmt = $conn->prepare("SELECT * FROM `tbl_suppliers`");
                                                 $stmt->execute();
                                                 while ($supplier = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                                     ?>
@@ -612,7 +623,7 @@ if (isset($_POST['pay_due'])) {
                                             <select name="product" id="product" class="form-select">
                                                 <option value="">Select Product</option>
                                                 <?php
-                                                $stmt = $conn->prepare("SELECT * FROM $table_products");
+                                                $stmt = $conn->prepare("SELECT * FROM `tbl_products`");
                                                 $stmt->execute();
                                                 while ($product = $stmt->fetch(PDO::FETCH_ASSOC)) {
                                                     ?>
@@ -704,7 +715,7 @@ if (isset($_POST['pay_due'])) {
     function showOrder(order_id) {
         currentModal = $.dialog({
             title: 'Order Details',
-            content: 'url:purchase-list?order-deatils&order_id=' + order_id,
+            content: 'url:purchase-list?order-details&order_id=' + order_id,
             columnClass: 'l',
             closeIcon: true,
             closeIconClass: 'fa fa-close',

@@ -13,9 +13,9 @@ if (isset($_REQUEST['draw'])) {
     $columns = $_REQUEST['columns'];
 
     $query = "SELECT so.*, c.full_name AS customer_name, 
-              (SELECT COUNT(*) FROM `$table_customer_payments` WHERE `$table_customer_payments`.`sale_order_id` = so.`order_id`) AS total_payments 
-              FROM $table_sales_orders so
-              LEFT JOIN $table_customers c ON so.customer_id = c.customer_id 
+              (SELECT COUNT(*) FROM `tbl_customer_payments` WHERE `tbl_customer_payments`.`sale_order_id` = so.`order_id`) AS total_payments 
+              FROM `tbl_sale_order` so
+              LEFT JOIN `tbl_customers` c ON so.customer_id = c.customer_id 
               WHERE 1 = 1";
 
     if (!empty($search)) {
@@ -90,27 +90,27 @@ if (isset($_REQUEST['draw'])) {
 
 if (isset($_REQUEST['order-details'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM $table_sales_orders so
-                LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
+    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM `tbl_sale_order` so
+                LEFT JOIN `tbl_customers` c ON so.customer_id = c.customer_id
                 WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
     // Fetch order details
-    $stmt = $conn->prepare("SELECT sod.*, p.product_name FROM $table_sales_orders_details sod LEFT JOIN $table_products p ON p.`product_id` = sod.`product_id` WHERE sale_order_id = :order_id");
+    $stmt = $conn->prepare("SELECT sod.*, p.product_name FROM `tbl_sale_order_details` sod LEFT JOIN `tbl_products` p ON p.`product_id` = sod.`product_id` WHERE sale_order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
     ?>
 
     <div class="container">
-        <?php order_details($order); ?>
+        <?php order_details($order, 'sale'); ?>
         <div class="table-responsive">
             <table class="table table-bordered">
-                <thead>
+                <thead class="bg-primary text-white text-nowrap">
                 <tr>
-                    <th>Sl.No.</th>
+                    <th style="width: 50px;">Sl. No.</th>
                     <th>Product</th>
                     <th>Quantity</th>
                     <th>Price</th>
@@ -164,14 +164,14 @@ if (isset($_REQUEST['order-details'])) {
 
 if (isset($_REQUEST['pay-due'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM $table_sales_orders so
-            LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
+    $stmt = $conn->prepare("SELECT so.*, c.full_name AS customer_name FROM `tbl_sale_order` so
+            LEFT JOIN `tbl_customers` c ON so.customer_id = c.customer_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC); ?>
     <div class="container">
-        <?php order_details($order); ?>
+        <?php order_details($order, 'sale'); ?>
         <div class="row">
             <div class="col-md-12">
                 <?php if ($order['due_amount'] > 0) { ?>
@@ -236,7 +236,7 @@ if (isset($_REQUEST['pay-due'])) {
                         </thead>
                         <tbody>
                         <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_customer_payments WHERE sale_order_id = :order_id ORDER BY `created_at` DESC");
+                        $stmt = $conn->prepare("SELECT * FROM `tbl_customer_payments` WHERE sale_order_id = :order_id ORDER BY `created_at` DESC");
                         $stmt->bindParam(':order_id', $order_id);
                         $stmt->execute();
                         $sl_no = 1;
@@ -299,7 +299,7 @@ if (isset($_POST['pay_due'])) {
         exit;
     }
 
-    $stmt = $conn->prepare("SELECT * FROM $table_sales_orders WHERE order_id = :order_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order` WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -307,7 +307,7 @@ if (isset($_POST['pay_due'])) {
     $due_amount = $order['due_amount'] - intval($pay_amount);
     $total_paid = $order['paid_amount'] + intval($pay_amount);
 
-    $stmt = $conn->prepare("INSERT INTO $table_customer_payments SET customer_id = :customer_id, sale_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes");
+    $stmt = $conn->prepare("INSERT INTO `tbl_customer_payments` SET customer_id = :customer_id, sale_order_id = :order_id, payment_date = :payment_date, payment_method = :payment_method, amount = :amount, notes = :notes");
     $stmt->bindParam(':customer_id', $order['customer_id']);
     $stmt->bindParam(':order_id', $order_id);
     $stmt->bindParam(':payment_date', $payment_date);
@@ -316,7 +316,7 @@ if (isset($_POST['pay_due'])) {
     $stmt->bindParam(':notes', $remarks);
 
     if ($stmt->execute()) {
-        $stmt = $conn->prepare("UPDATE $table_sales_orders SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
+        $stmt = $conn->prepare("UPDATE `tbl_sale_order` SET due_amount = :due_amount, paid_amount = :total_paid WHERE order_id = :order_id");
         $stmt->bindParam(':due_amount', $due_amount);
         $stmt->bindParam(':total_paid', $total_paid);
         $stmt->bindParam(':order_id', $order_id);
@@ -334,8 +334,8 @@ if (isset($_POST['pay_due'])) {
 
 if (isset($_REQUEST['change-status'])) {
     $order_id = $_REQUEST['order_id'];
-    $stmt = $conn->prepare("SELECT so.*, c.full_name as customer_name FROM $table_sales_orders so
-            LEFT JOIN $table_customers c ON so.customer_id = c.customer_id
+    $stmt = $conn->prepare("SELECT so.*, c.full_name as customer_name FROM `tbl_sale_order` so
+            LEFT JOIN `tbl_customers` c ON so.customer_id = c.customer_id
             WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -348,7 +348,7 @@ if (isset($_REQUEST['change-status'])) {
                 <div class="col-md-12">
                     <form action="sale-list" method="post" class="form">
                         <input type="hidden" name="order_id" value="<?= $order_id ?>">
-                        <?php order_details($order); ?>
+                        <?php order_details($order, 'sale'); ?>
                         <div class="form-group row">
                             <label class="col-sm-3 col-form-label">Status</label>
                             <div class="col-sm-9">
@@ -413,7 +413,7 @@ if (isset($_REQUEST['change-status'])) {
                         </thead>
                         <tbody>
                         <?php
-                        $stmt = $conn->prepare("SELECT * FROM $table_sales_orders_status_log WHERE order_id = :order_id ORDER BY `changed_at` DESC");
+                        $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order_status_log` WHERE order_id = :order_id ORDER BY `changed_at` DESC");
                         $stmt->bindParam(':order_id', $order_id);
                         $stmt->execute();
                         $sl_no = 1;
@@ -475,7 +475,7 @@ if (isset($_REQUEST['change_status'])) {
         echo json_encode(['status' => 'error', 'message' => 'Select status']);
         exit;
     }
-    $stmt = $conn->prepare("SELECT * FROM $table_sales_orders WHERE order_id = :order_id");
+    $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order` WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -485,7 +485,7 @@ if (isset($_REQUEST['change_status'])) {
             exit;
         }
 
-        $stmt = $conn->prepare("SELECT * FROM $table_sales_orders_details WHERE sale_order_id = :order_id");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order_details` WHERE sale_order_id = :order_id");
         $stmt->bindParam(':order_id', $order_id);
         $stmt->execute();
         $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -493,19 +493,19 @@ if (isset($_REQUEST['change_status'])) {
         try {
             $conn->beginTransaction();
             foreach ($order_details as $order_detail) {
-                $stmt = $conn->prepare("SELECT * FROM $table_stock WHERE product_id = :product_id AND quantity >= :quantity ORDER BY added_on ASC LIMIT 1");
+                $stmt = $conn->prepare("SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND quantity >= :quantity ORDER BY added_on ASC LIMIT 1");
                 $stmt->bindParam(':product_id', $order_detail['product_id']);
                 $stmt->bindParam(':quantity', $order_detail['quantity']);
                 $stmt->execute();
                 $stock = $stmt->fetch(PDO::FETCH_ASSOC);
                 if (!empty($stock)) {
                     $batch_number = $stock['batch_number'];
-                    $stmt = $conn->prepare("UPDATE $table_stock SET quantity = quantity - :quantity WHERE stock_id = :stock_id");
+                    $stmt = $conn->prepare("UPDATE `tbl_stock` SET quantity = quantity - :quantity WHERE stock_id = :stock_id");
                     $stmt->bindParam(':quantity', $order_detail['quantity']);
                     $stmt->bindParam(':stock_id', $stock['stock_id']);
                     $stmt->execute();
 
-                    $stmt = $conn->prepare("INSERT INTO $table_stock_transactions SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
+                    $stmt = $conn->prepare("INSERT INTO `tbl_stock_transactions` SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
                     $remarks_new = 'Order ID: ' . $order['inv_number'] . ' - ' . $remarks;
                     $stmt->bindParam(':product_id', $order_detail['product_id']);
                     $stmt->bindParam(':stock_id', $stock['stock_id']);
@@ -518,13 +518,13 @@ if (isset($_REQUEST['change_status'])) {
                     $stmt->bindParam(':order_reference', $order['inv_number']);
                     $stmt->execute();
 
-                    $stmt = $conn->prepare("UPDATE $table_sales_orders_details SET batch_number = :batch_number WHERE sale_order_id = :order_id AND product_id = :product_id");
+                    $stmt = $conn->prepare("UPDATE `tbl_sale_order_details` SET batch_number = :batch_number WHERE sale_order_id = :order_id AND product_id = :product_id");
                     $stmt->bindParam(':batch_number', $batch_number);
                     $stmt->bindParam(':order_id', $order_id);
                     $stmt->bindParam(':product_id', $order_detail['product_id']);
                     $stmt->execute();
 
-                    $stmt = $conn->prepare("UPDATE $table_products SET stock = stock - :quantity WHERE product_id = :product_id");
+                    $stmt = $conn->prepare("UPDATE `tbl_products` SET stock = stock - :quantity WHERE product_id = :product_id");
                     $stmt->bindParam(':quantity', $order_detail['quantity']);
                     $stmt->bindParam(':product_id', $order_detail['product_id']);
                     $stmt->execute();
@@ -533,7 +533,7 @@ if (isset($_REQUEST['change_status'])) {
                 }
             }
 
-            $stmt = $conn->prepare("INSERT INTO $table_sales_orders_status_log SET order_id = :order_id, old_status = :old_status, new_status = :new_status, remarks = :remarks, changed_by = :changed_by, changed_at = :changed_at");
+            $stmt = $conn->prepare("INSERT INTO `tbl_sale_order_status_log` SET order_id = :order_id, old_status = :old_status, new_status = :new_status, remarks = :remarks, changed_by = :changed_by, changed_at = :changed_at");
             $stmt->bindParam(':order_id', $order_id);
             $stmt->bindParam(':old_status', $order['status']);
             $stmt->bindParam(':new_status', $status);
@@ -542,7 +542,7 @@ if (isset($_REQUEST['change_status'])) {
             $stmt->bindParam(':changed_at', $now);
             $stmt->execute();
 
-            $stmt = $conn->prepare("UPDATE $table_sales_orders SET status = :status, delivery_date = :delivery_date, shipping_address = :shipping_address WHERE order_id = :order_id");
+            $stmt = $conn->prepare("UPDATE `tbl_sale_order` SET status = :status, delivery_date = :delivery_date, shipping_address = :shipping_address WHERE order_id = :order_id");
             $stmt->bindParam(':status', $status);
             $stmt->bindParam(':delivery_date', $delivery_date);
             $stmt->bindParam(':shipping_address', $shipping_address);

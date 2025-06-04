@@ -19,21 +19,136 @@ An Inventory Management System designed for managing products, suppliers, and st
 - 📧 PHPMailer (for sending emails)
 - 🎨 HTML/CSS for front-end
 
-## 💾 Database Schema
-
-### Tables
-
-1. **tbl_products** 📦
-2. **tbl_suppliers** 🤝
-3. **tbl_stock** 📊
-
 ## 🚀 Installation
 
-1. **Clone the repository** 📥
-2. **Setup Database** 🗄️
-3. **Configure Database Connection** ⚙️
-4. **Install Dependencies** 📦
-5. **Run the Application** 🚀
+### Prerequisites 📋
+
+Before you begin, ensure you have the following installed on your system:
+
+- 🖥️ **Web Server**: Apache or Nginx
+- 🐘 **PHP**: Version 8.0 or higher with the following extensions:
+  - PDO (PHP Data Objects)
+  - PDO MySQL
+  - JSON
+  - cURL
+  - OpenSSL
+- 🗄️ **MySQL/MariaDB**: Version 5.7 or higher
+- 🎼 **Composer**: For dependency management
+
+### Step-by-Step Installation 🔧
+
+#### 1. **Clone the Repository** 📥
+```bash
+git clone https://github.com/sculptorofcode/inventory-management-system.git
+cd inventory-management-system
+```
+
+#### 2. **Install PHP Dependencies** 📦
+```bash
+composer install
+```
+
+#### 3. **Setup Database** 🗄️
+
+**Option A: Import Complete Database (Recommended)**
+1. Create a new MySQL database named `ims`
+2. Import the database schema:
+   ```bash
+   mysql -u root -p ims < database/db.sql
+   ```
+
+**Option B: Use Migration System**
+1. Create a new MySQL database named `ims`
+2. Run the migration script:
+   - **Windows**: Double-click `run-migrations.bat`
+   - **Linux/Mac**: Execute `./run-migrations.sh`
+   - **Manual**: Run `php migrate.php` from the project root
+
+#### 4. **Configure Database Connection** ⚙️
+
+Edit the configuration file `includes/config/config.php`:
+
+```php
+const DB_HOST = 'localhost';     // Your database host
+const DB_USER = 'root';          // Your database username
+const DB_PASS = '';              // Your database password
+const DB_NAME = 'ims';           // Your database name
+
+const SITE_URL = 'http://localhost/your-project-folder';
+const LOGIN_URL = 'http://localhost/your-project-folder/login';
+```
+
+#### 5. **Configure Web Server** 🌐
+
+**For Apache (XAMPP/WAMP):**
+1. Copy the project folder to your web server's document root (e.g., `htdocs`)
+2. Ensure `.htaccess` files are enabled
+3. Start Apache and MySQL services
+
+**For Nginx:**
+1. Configure a virtual host pointing to the project directory
+2. Ensure PHP-FPM is running
+3. Configure appropriate rewrite rules
+
+#### 6. **Set File Permissions** 🔐
+```bash
+# For Linux/Mac systems
+chmod -R 755 assets/
+chmod -R 755 logs/
+chmod 644 includes/config/config.php
+```
+
+#### 7. **Configure Email Settings (Optional)** 📧
+
+For email functionality, update the email settings in `includes/config/config.php`:
+
+```php
+const APP_EMAIL = 'your-email@domain.com';
+const APP_EMAIL_PASSWORD = 'your-app-password';
+```
+
+#### 8. **Run the Application** 🚀
+
+1. Start your web server and MySQL service
+2. Open your browser and navigate to: `http://localhost/your-project-folder`
+3. You should see the IMS login page
+
+### Default Login Credentials 🔑
+
+After installation, you can log in using:
+- **Username**: admin
+- **Password**: admin123
+
+⚠️ **Important**: Change the default credentials immediately after first login!
+
+### Troubleshooting 🔧
+
+**Common Issues:**
+
+1. **Database Connection Error**
+   - Verify database credentials in `config.php`
+   - Ensure MySQL service is running
+   - Check if the database `ims` exists
+
+2. **Composer Dependencies Error**
+   - Run `composer update` to refresh dependencies
+   - Ensure PHP version compatibility
+
+3. **Permission Issues**
+   - Check file permissions for `assets/` and `logs/` directories
+   - Ensure web server has read/write access
+
+4. **Email Not Working**
+   - Verify SMTP settings in configuration
+   - Check if less secure app access is enabled (for Gmail)
+
+### Post-Installation Setup ✅
+
+1. **Change Default Passwords**: Update admin credentials
+2. **Configure System Settings**: Set up company information
+3. **Add Initial Data**: Create categories, suppliers, and products
+4. **Test Features**: Verify all modules are working correctly
+5. **Enable Backups**: Set up regular database backups
 
 ## 📖 Usage
 

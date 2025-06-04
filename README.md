@@ -50,9 +50,10 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [x] Purchase Report
    - [x] Inventory Valuation Report
 
-- [ ] **Inventory Adjustments**
+- [x] **Inventory Adjustments**
    - [x] Stock Adjustment
-   - [ ] Stock Transfer
+   - [x] Stock Transfer
+   - [x] Partial Quantity Movement
 
 - [ ] **Pricing Management**
    - [ ] Price Lists
@@ -67,9 +68,10 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [ ] Product Returns
    - [ ] Return Requests
 
-- [ ] **Warehouse/Location Management**
-   - [ ] Multiple Warehouses
-   - [ ] Location Tracking
+- [x] **Warehouse/Location Management**
+   - [x] Multiple Warehouses
+   - [x] Location Tracking
+   - [x] Location History
 
 - [ ] **Purchase and Sale Order Enhancements**
    - [x] Order Invoices
@@ -85,15 +87,19 @@ The following features can be added or enhanced to improve the Inventory Managem
    - [ ] Barcode Scanning
    - [ ] Barcode Label Generation
 
-- [ ] **Supplier and Customer Communication**
+- [ ] **Communication Features**
    - [ ] Email/SMS Notifications
-   - [ ] Customer Communication
 
 - [ ] **Audit Logs**
    - [ ] Audit Trail
 
 - [ ] **Import/Export Functionality**
    - [ ] CSV Import/Export
+
+- [x] **Database Migration System**
+   - [x] Automated Schema Updates
+   - [x] Migration Tracking
+   - [x] CLI and Web Interface
 
 - [ ] **Product Expiry Management (for Perishable Goods)**
    - [ ] Expiry Tracking

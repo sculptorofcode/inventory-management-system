@@ -41,7 +41,11 @@ if (isset($_REQUEST['draw'])) {
             $data[$key][$k] = html_entity_decode($v);
         }
         $data[$key]['added_date'] = !empty($row['added_date']) ? date('d M Y', strtotime($row['added_date'])) : '';
-        $data[$key]['action'] = '<a href="product?id=' . $row['product_id'] . '" class="btn btn-sm btn-primary"><i class="fa fa-edit"></i></a>';
+        $data[$key]['action'] = '
+            <div class="d-flex gap-1">
+                <a href="product?id=' . $row['product_id'] . '" class="btn btn-sm btn-primary" title="Edit Product"><i class="fa fa-edit"></i></a>
+                <a href="location-history.php?product_id=' . $row['product_id'] . '" class="btn btn-sm btn-info" title="View Location History"><i class="bx bx-history"></i></a>
+            </div>';
         if ($row['gst_type'] > 0) {
             $data[$key]['gst_type'] = $row['gst_type'] == 1 ? 'CGST/SGST' : ($row['gst_type'] == 2 ? 'IGST' : '');
             $data[$key]['gst_type'] .= ' - ' . round($row['gst_rate'], 2) . '%';

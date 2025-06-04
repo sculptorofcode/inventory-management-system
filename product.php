@@ -197,6 +197,57 @@ if (isset($_GET['id'])) {
                                         </div>
                                     </div>
                                 </form>
+
+                                <?php if (isset($row) && $form_action === 'edit'): 
+                                    $stock_items = getStockByProductId($row['product_id']);
+                                    if (!empty($stock_items)):
+                                ?>                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <div class="card">
+                                            <div class="card-header p-3 border-bottom d-flex justify-content-between align-items-center">
+                                                <h5 class="card-title mb-0">Product Location Information</h5>
+                                                <a href="location-history.php?product_id=<?= $row['product_id'] ?>" class="btn btn-sm btn-primary">
+                                                    <i class="bx bx-history me-1"></i> View Location History
+                                                </a>
+                                            </div>
+                                            <div class="card-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-bordered">
+                                                        <thead class="bg-light">
+                                                            <tr>
+                                                                <th>Batch Number</th>
+                                                                <th>Quantity</th>
+                                                                <th>Warehouse</th>
+                                                                <th>Location</th>
+                                                                <th>Added Date</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <?php foreach($stock_items as $item): ?>
+                                                                <tr>
+                                                                    <td><?= $item['batch_number'] ?></td>
+                                                                    <td><?= $item['quantity'] ?></td>
+                                                                    <td><?= !empty($item['warehouse_name']) ? html_entity_decode($item['warehouse_name']) : 'Not assigned' ?></td>
+                                                                    <td>
+                                                                        <?php 
+                                                                        if (!empty($item['location_name']) && !empty($item['location_type'])) {
+                                                                            echo $item['location_name'] . ' (' . $item['location_type'] . ')';
+                                                                        } else {
+                                                                            echo 'Not assigned';
+                                                                        }
+                                                                        ?>
+                                                                    </td>
+                                                                    <td><?= date('d M Y', strtotime($item['added_on'])) ?></td>
+                                                                </tr>
+                                                            <?php endforeach; ?>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <?php endif; endif; ?>
                             </div>
                         </div>
                     </div>

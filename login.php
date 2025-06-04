@@ -89,8 +89,7 @@ if (isset($_POST['login'])) {
                         <button type="submit" name="login" class="btn btn-primary w-75">Login</button>
                     </div>
                 </form>
-                <div class="mt-3 d-flex justify-content-between">
-                    <a href="register" class="register">Create an account</a>
+                <div class="mt-3 d-flex justify-content-end">
                     <a href="forgot-password" class="forgot-password">Forgot Password?</a>
                 </div>
             </div>

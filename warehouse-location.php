@@ -260,11 +260,11 @@ if (isset($_REQUEST['action']) && $_REQUEST['action'] == 'get_parent_location') 
                                                         <option value="" selected disabled>Select Parent Location</option>
                                                         <?php
                                                         if ($form_action == 'edit') {
-                                                            $filters = ['is_deleted' => 0, 'type' => $row['type']];
+                                                            $filters = ['is_deleted' => 0];
                                                             if ($row['type'] == 'Zone') {
                                                                 $filters['warehouse_id'] = $row['warehouse_id'];
                                                             }else{
-                                                                $filters['parent_location_id'] = $row['warehouse_id'];
+                                                                $filters['location_id'] = $row['parent_location_id'];
                                                             }
                                                             $locations = getTable('tbl_warehouse_location', $filters);
                                                             foreach ($locations as $location) {

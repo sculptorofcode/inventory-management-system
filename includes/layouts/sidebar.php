@@ -61,12 +61,23 @@
                     </a>
                 </li>
             </ul>
-        </li>
-        <li class="menu-item">
-            <a href="stock-list" class="menu-link">
+        </li>        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-archive"></i>
-                <div>Stock</div>
+                <div>Stock Management</div>
             </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="stock-list" class="menu-link">
+                        <div>Stock List</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="location-history" class="menu-link">
+                        <div>Location History</div>
+                    </a>
+                </li>
+            </ul>
         </li>
         <li class="menu-item">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
@@ -118,24 +129,6 @@
                 <li class="menu-item">
                     <a href="sale-list" class="menu-link">
                         <div>List</div>
-                    </a>
-                </li>
-            </ul>
-        </li>
-        <li class="menu-item">
-            <a href="javascript:void(0);" class="menu-link menu-toggle">
-                <i class="menu-icon tf-icons bx bx-user"></i>
-                <div data-i18n="Account Settings">Customer</div>
-            </a>
-            <ul class="menu-sub">
-                <li class="menu-item">
-                    <a href="customer" class="menu-link">
-                        <div data-i18n="CustomerAdd">Add</div>
-                    </a>
-                </li>
-                <li class="menu-item">
-                    <a href="customer-list" class="menu-link">
-                        <div data-i18n="CustomerList">List</div>
                     </a>
                 </li>
             </ul>

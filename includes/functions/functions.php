@@ -4,6 +4,7 @@ include 'order_functions.php';
 include 'payment_functions.php';
 include 'product_functions.php';
 include 'supplier_functions.php';
+include 'warehouse_functions.php';
 
 function filtervar($var)
 {

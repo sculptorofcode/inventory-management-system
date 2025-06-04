@@ -1,4 +1,11 @@
 <?php
+/**
+ * Redirect customer page to maintenance page
+ */
+header("Location: maintenance.php?feature=Customer Management");
+exit;
+
+/* Original code commented out
 require_once 'includes/config/after-login.php';
 $title = 'Register New User';
 if (isset($_GET['id'])) {
@@ -9,6 +16,7 @@ if (isset($_GET['id'])) {
         exit;
     }
 }
+*/
 ?>
 <!DOCTYPE html>
 <html lang="en" class="light-style layout-menu-fixed" dir="ltr" data-theme="theme-default" data-assets-path="assets/"

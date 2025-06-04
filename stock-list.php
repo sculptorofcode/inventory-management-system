@@ -12,12 +12,17 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
 
     $total = getCount('tbl_products', [], 'stock > 0');
 
-    $sql = "SELECT p.*,sp.supplier_name,c.category_name,s.*, (s.quantity * p.purchase_price) as total_value, w.warehouse_name
+    $sql = "SELECT p.*,sp.supplier_name,c.category_name,s.*, 
+            (s.quantity * p.purchase_price) as total_value, 
+            w.warehouse_name,
+            wl.name as location_name, 
+            wl.type as location_type
             FROM `tbl_stock` s
             LEFT JOIN `tbl_products` p ON s.product_id = p.product_id
             LEFT JOIN `tbl_product_categories` c ON p.category = c.category_id
             LEFT JOIN `tbl_suppliers` sp ON p.supplier_id = sp.supplier_id
             LEFT JOIN `tbl_warehouse` w ON s.warehouse_id = w.warehouse_id
+            LEFT JOIN `tbl_warehouse_location` wl ON s.location_id = wl.location_id
             WHERE s.quantity > 0";
 
     if ($search) {
@@ -46,6 +51,7 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
     foreach ($data as &$row) {
         $batch_number = $row['batch_number'];
         $assign_warehouse = '<button class="btn btn-primary btn-sm px-2" onclick="assignWarehouse(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')">Assign</button>';
+        $product_name = html_entity_decode($row['product_name']) . ' <br><small class="text-muted">' . html_entity_decode($row['category_name']) . '</small>';
         $row['sl_no'] = $sl++;
         $row['stock'] = $row['stock'] ?? 0;
         $row['purchase_price'] = $row['purchase_price'];
@@ -54,12 +60,24 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
         $row['batch_number'] = '<a href="javascript:void(0)" onclick="stockReport(\'' . $row['batch_number'] . '\',' . $row['product_id'] . ', \'' . $row['product_name'] . '\')">' . $row['batch_number'] . '</a>';
         $row['category_name'] = html_entity_decode($row['category_name']);
         $row['product_name'] = html_entity_decode($row['product_name']);
-        $row['warehouse_name'] = !empty($row['warehouse_name']) ? html_entity_decode($row['warehouse_name']) : $assign_warehouse;
+        // Build warehouse and location display
+        $warehouse_display = !empty($row['warehouse_name']) ? html_entity_decode($row['warehouse_name']) : $assign_warehouse;
 
+        // Add location info if available
+        if (!empty($row['location_name']) && !empty($row['location_type'])) {
+            $location_info = $row['location_name'] . ' (' . $row['location_type'] . ')';
+            $warehouse_display .= '<br><small class="text-muted text-nowrap">Location: ' . $location_info . '</small>';
+        }
+
+        $row['warehouse_name'] = $warehouse_display;
         $row['action'] = '<div class="d-flex gap-2">';
-        $row['action'] .= '<a href="javascript:void(0)" onclick="manageStock(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bxs-cog"></i></a>';
-        $row['action'] .= '<a href="javascript:void(0)" onclick="moveToLocation(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2"><i class="bx bx-transfer"><i/></a>';
+        $row['action'] .= '<a href="javascript:void(0)" onclick="manageStock(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2" title="Manage Stock"><i class="bx bxs-cog"></i></a>';
+
+        $row['action'] .= '<a href="javascript:void(0)" onclick="moveToLocation(' . $row['product_id'] . ', \'' . $batch_number . '\', \'' . $row['product_name'] . '\')" class="btn btn-primary btn-sm px-2" title="Move to Location"><i class="bx bx-transfer"></i></a>';
+
+        $row['action'] .= '<a href="location-history.php?stock_id=' . $row['stock_id'] . '" class="btn btn-info btn-sm px-2" title="View Location History"><i class="bx bx-history"></i></a>';
         $row['action'] .= '</div>';
+        $row['product_name'] = $product_name;
     }
 
     $response = [
@@ -228,29 +246,88 @@ if (isset($_REQUEST['assignWarehouse'])) {
     $product_id = $_REQUEST['product_id'];
     $batch_number = $_REQUEST['batch_number'];
     $stock = getStockByProductAndBatch($product_id, $batch_number);
-    $warehouses = getAllWarehouses(); ?>
+    $warehouses = getAllWarehouses();
+
+    $current_warehouse_id = $stock['warehouse_id'] ?? null;
+    $current_location_id = $stock['location_id'] ?? null;
+
+    $warehouse_locations = [];
+    if ($current_warehouse_id) {
+        $warehouse_locations = getLocationsByWarehouse($current_warehouse_id);
+    }
+?>
     <form class="container" method="POST">
         <div class="row">
             <div class="col-md-12">
                 <input type="hidden" name="product_id" id="product_id" value="<?= $product_id ?>">
                 <input type="hidden" name="batch_number" id="batch_number" value="<?= $batch_number ?>">
+                <input type="hidden" name="stock_id" value="<?= $stock['stock_id'] ?>">
+
                 <div class="form-group mb-3">
-                    <label for="warehouse">Warehouse</label>
-                    <select name="warehouse" id="warehouse" class="form-select" required>
+                    <label for="warehouse_id">Warehouse</label>
+                    <select name="warehouse_id" id="warehouse_id" required>
                         <option value="" disabled selected>Select Warehouse</option>
-                        <?php foreach ($warehouses as $warehouse) { ?>
-                            <option value="<?= $warehouse['warehouse_id'] ?>"><?= html_entity_decode($warehouse['warehouse_name']) ?></option>
+                        <?php foreach ($warehouses as $warehouse) {
+                            $selected = ($warehouse['warehouse_id'] == $current_warehouse_id) ? 'selected' : '';
+                        ?>
+                            <option value="<?= $warehouse['warehouse_id'] ?>" <?= $selected ?>><?= html_entity_decode($warehouse['warehouse_name']) ?></option>
                         <?php } ?>
                     </select>
                 </div>
+
+                <div class="form-group mb-3">
+                    <label for="location_id">Location (Optional)</label>
+                    <select name="location_id" id="location_id">
+                        <option value="">Select Location (Optional)</option>
+                        <?php foreach ($warehouse_locations as $location) {
+                            $selected = ($location['location_id'] == $current_location_id) ? 'selected' : '';
+                            $location_label = $location['name'] . ' (' . $location['type'] . ')';
+                        ?>
+                            <option value="<?= $location['location_id'] ?>" <?= $selected ?>><?= $location_label ?></option>
+                        <?php } ?>
+                    </select>
+                    <small class="form-text text-muted">First select a warehouse to see available locations</small>
+                </div>
+
                 <div class="text-center">
-                    <button type="submit" class="btn btn-primary" id="assign_warehouse" name="assign_warehouse">Assign
-                        Warehouse
-                    </button>
+                    <button type="submit" class="btn btn-primary" id="assign_warehouse" name="assign_warehouse">Assign Warehouse & Location</button>
                 </div>
             </div>
         </div>
     </form>
+
+    <script>
+        $(document).ready(function() {
+            // When warehouse changes, load locations for that warehouse
+            $('#warehouse_id').change(function() {
+                var warehouseId = $(this).val();
+                if (warehouseId) {
+                    $.ajax({
+                        url: 'ajax.php',
+                        type: 'POST',
+                        data: {
+                            action: 'get_locations_by_warehouse',
+                            warehouse_id: warehouseId
+                        },
+                        success: function(response) {
+                            if ($('#location_id').data('selectize')) {
+                                $('#location_id')[0].selectize.destroy();
+                            }
+                            $('#location_id').html(response);
+                            $('#location_id').selectize({
+                                create: false,
+                                sortField: 'text',
+                                placeholder: 'Select Location',
+                                dropdownParent: 'body'
+                            });
+                        }
+                    });
+                } else {
+                    $('#location_id').html('<option value="">Select Location (Optional)</option>');
+                }
+            });
+        });
+    </script>
     <?php
     exit;
 }
@@ -258,7 +335,9 @@ if (isset($_REQUEST['assignWarehouse'])) {
 if (isset($_POST['assign_warehouse'])) {
     $product_id = filtervar($_POST['product_id']);
     $batch_number = filtervar($_POST['batch_number']);
-    $warehouse_id = filtervar($_POST['warehouse']);
+    $stock_id = filtervar($_POST['stock_id']);
+    $warehouse_id = filtervar($_POST['warehouse_id']);
+    $location_id = isset($_POST['location_id']) && !empty($_POST['location_id']) ? filtervar($_POST['location_id']) : null;
 
     try {
         $conn->beginTransaction();
@@ -267,15 +346,56 @@ if (isset($_POST['assign_warehouse'])) {
         if (!$stock) {
             throw new Exception('Stock not found!');
         }
-        $stock_id = $stock['stock_id'];
 
-        $stmt = $conn->prepare("UPDATE `tbl_stock` SET warehouse_id = :warehouse WHERE stock_id = :stock_id");
-        $stmt->bindParam(':warehouse', $warehouse_id);
+        // If location is specified, verify it belongs to the selected warehouse
+        if ($location_id) {
+            $location = getWarehouseLocationById($location_id);
+            if (!$location || $location['warehouse_id'] != $warehouse_id) {
+                throw new Exception('The selected location does not belong to the selected warehouse');
+            }
+        }
+
+        // Update warehouse and location
+        $stmt = $conn->prepare("UPDATE `tbl_stock` SET warehouse_id = :warehouse_id, location_id = :location_id WHERE stock_id = :stock_id");
+        $stmt->bindParam(':warehouse_id', $warehouse_id);
+        $stmt->bindParam(':location_id', $location_id);
         $stmt->bindParam(':stock_id', $stock_id);
         $stmt->execute();
 
+        // Record the change in stock transactions
+        $warehouse = null;
+        foreach (getAllWarehouses() as $wh) {
+            if ($wh['warehouse_id'] == $warehouse_id) {
+                $warehouse = $wh;
+                break;
+            }
+        }
+
+        $warehouse_name = $warehouse ? $warehouse['warehouse_name'] : 'Unknown Warehouse';
+        $location_name = '';
+
+        if ($location_id) {
+            $location = getWarehouseLocationById($location_id);
+            if ($location) {
+                $location_name = " - " . $location['name'] . " (" . $location['type'] . ")";
+            }
+        }
+
+        $notes = "Assigned to " . $warehouse_name . $location_name;
+        $transaction_location = $warehouse_name . $location_name;
+
+        $stmt = $conn->prepare("INSERT INTO `tbl_stock_transactions` (product_id, stock_id, quantity_change, previous_quantity, transaction_type, notes, user_id, transaction_location) 
+                                VALUES (:product_id, :stock_id, 0, :quantity, 'warehouse', :notes, :user_id, :transaction_location)");
+        $stmt->bindParam(':product_id', $stock['product_id']);
+        $stmt->bindParam(':stock_id', $stock_id);
+        $stmt->bindParam(':quantity', $stock['quantity']);
+        $stmt->bindParam(':notes', $notes);
+        $stmt->bindParam(':user_id', $userdata['customer_id']);
+        $stmt->bindParam(':transaction_location', $transaction_location);
+        $stmt->execute();
+
         $conn->commit();
-        echo json_encode(['status' => 'success', 'message' => 'Warehouse assigned successfully!', 'function' => 'reloadPage']);
+        echo json_encode(['status' => 'success', 'message' => 'Warehouse and location assigned successfully!', 'function' => 'reloadPage']);
     } catch (Exception $e) {
         $conn->rollBack();
         echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
@@ -293,27 +413,151 @@ if (isset($_REQUEST['moveToLocation'])) {
     <?php exit;
     }
 
-    $warehouses = getAllWarehouses(); ?>
+    $warehouses = getAllWarehouses();
+    $current_warehouse_id = $stock['warehouse_id'] ?? null;
+    $current_location_id = $stock['location_id'] ?? null;
+
+    $warehouse_locations = [];
+    if ($current_warehouse_id) {
+        $warehouse_locations = getLocationsByWarehouse($current_warehouse_id);
+    }
+    ?>
     <form class="container" method="POST">
         <div class="row">
-            <div class="col-md-12">
-                <input type="hidden" name="product_id" id="product_id" value="<?= $product_id ?>">
-                <input type="hidden" name="batch_number" id="batch_number" value="<?= $batch_number ?>">
+            <div class="col-md-12">                
+                <input type="hidden" name="product_id" value="<?= $product_id ?>">
+                <input type="hidden" name="batch_number" value="<?= $batch_number ?>">
+                <input type="hidden" name="stock_id" value="<?= $stock['stock_id'] ?>">
+
                 <div class="form-group mb-3">
-                    <label for="location">Location</label>
-                    <select name="location" id="location" required>
-                        <option value="" disabled selected>Select Location</option>
+                    <label for="quantity">Quantity to Move</label>
+                    <input type="number" name="quantity" id="quantity" class="form-control" 
+                           min="1" max="<?= $stock['quantity'] ?>" value="<?= $stock['quantity'] ?>" required>
+                    <small class="form-text text-muted">
+                        Available: <?= $stock['quantity'] ?>. If moving less than the total quantity, 
+                        a new batch will be created for the moved quantity.
+                    </small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="warehouse_id">Warehouse</label>
+                    <select name="warehouse_id" id="warehouse_id" required>
+                        <option value="" disabled selected>Select Warehouse</option>
+                        <?php foreach ($warehouses as $warehouse) {
+                            $selected = ($warehouse['warehouse_id'] == $current_warehouse_id) ? 'selected' : '';
+                        ?>
+                            <option value="<?= $warehouse['warehouse_id'] ?>" <?= $selected ?>><?= html_entity_decode($warehouse['warehouse_name']) ?></option>
+                        <?php } ?>
                     </select>
                 </div>
+
+                <div class="form-group mb-3">
+                    <label for="location_id">Location</label>
+                    <select name="location_id" id="location_id" required>
+                        <option value="" disabled selected>Select Location</option>
+                        <?php foreach ($warehouse_locations as $location) {
+                            $selected = ($location['location_id'] == $current_location_id) ? 'selected' : '';
+                            $location_label = $location['name'] . ' (' . $location['type'] . ')';
+                        ?>
+                            <option value="<?= $location['location_id'] ?>" <?= $selected ?>><?= $location_label ?></option>
+                        <?php } ?>
+                    </select>
+                    <small class="form-text text-muted">First select a warehouse to see available locations</small>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="notes">Notes (Optional)</label>
+                    <textarea name="notes" id="notes" class="form-control" rows="2" placeholder="Add notes about this move"></textarea>
+                </div>
+
                 <div class="text-center">
-                    <button type="submit" class="btn btn-primary" id="move_to_location" name="move_to_location">Move to
-                        Location
-                    </button>
+                    <button type="submit" class="btn btn-primary" id="move_to_location" name="move_to_location">Move to Location</button>
                 </div>
             </div>
         </div>
     </form>
+
+    <script>
+        $(document).ready(function() {
+            // When warehouse changes, load locations for that warehouse
+            $('#warehouse_id').change(function() {
+                var warehouseId = $(this).val();
+                if (warehouseId) {
+                    $.ajax({
+                        url: 'ajax.php',
+                        type: 'POST',
+                        data: {
+                            action: 'get_locations_by_warehouse',
+                            warehouse_id: warehouseId
+                        },
+                        success: function(response) {
+                            if ($('#location_id').data('selectize')) {
+                                $('#location_id')[0].selectize.destroy();
+                            }
+                            $('#location_id').html(response);
+                            $('#location_id').selectize({
+                                create: false,
+                                sortField: 'text',
+                                placeholder: 'Select Location',
+                                dropdownParent: 'body'
+                            });
+                        }
+                    });
+                } else {
+                    $('#location_id').html('<option value="" disabled selected>Select Location</option>');
+                }
+            });
+        });
+    </script>
 <?php
+    exit;
+}
+
+if (isset($_POST['move_to_location'])) {
+    $product_id = filtervar($_POST['product_id']);
+    $batch_number = filtervar($_POST['batch_number']);
+    $stock_id = filtervar($_POST['stock_id']);
+    $warehouse_id = filtervar($_POST['warehouse_id']);
+    $location_id = filtervar($_POST['location_id']);
+    $notes = filtervar($_POST['notes']);
+    $quantity = intval(filtervar($_POST['quantity']));
+
+    try {
+        // Verify location exists in the selected warehouse
+        $location = getWarehouseLocationById($location_id);
+        if (!$location) {
+            throw new Exception('Invalid location selected');
+        }
+
+        // Check if stock exists
+        $stock = getStockByProductAndBatch($product_id, $batch_number);
+        if (!$stock) {
+            throw new Exception('Stock not found');
+        }
+
+        // Validate quantity
+        if ($quantity <= 0 || $quantity > $stock['quantity']) {
+            throw new Exception('Invalid quantity. Must be between 1 and ' . $stock['quantity']);
+        }
+
+        // If moving partial quantity, create a new batch and move only that portion
+        if ($quantity < $stock['quantity']) {
+            $result = movePartialStockToLocation($stock_id, $warehouse_id, $location_id, $quantity, $notes, $userdata['customer_id']);
+            $message = 'Partial stock quantity moved to new location successfully';
+        } else {
+            // Move entire stock to the new location
+            $result = moveStockToLocation($stock_id, $warehouse_id, $location_id, $notes, $userdata['customer_id']);
+            $message = 'Stock moved to new location successfully';
+        }
+
+        if ($result) {
+            echo json_encode(['status' => 'success', 'message' => $message, 'function' => 'reloadPage']);
+        } else {
+            throw new Exception('Failed to move stock to the selected location');
+        }
+    } catch (Exception $e) {
+        echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+    }
     exit;
 }
 ?>
@@ -337,8 +581,11 @@ if (isset($_REQUEST['moveToLocation'])) {
                 <div class="content-wrapper">
                     <div class="container-fluid flex-grow-1 container-p-y">
                         <div class="card">
-                            <div class="card-header border-bottom py-3">
+                            <div class="card-header border-bottom py-3 d-flex justify-content-between align-items-center">
                                 <h5 class="card-title mb-0"><?= $title ?></h5>
+                                <a href="location-history" class="btn btn-info">
+                                    <i class="bx bx-history me-1"></i> View Location History
+                                </a>
                             </div>
                             <div class="card-body pt-3">
                                 <div class="row justify-content-center align-items-end mb-3">
@@ -403,7 +650,7 @@ if (isset($_REQUEST['moveToLocation'])) {
                                                 </thead>
                                                 <tfoot>
                                                     <tr>
-                                                        <th colspan="6" style="text-align:right">Total:</th>
+                                                        <th colspan="5" style="text-align:right">Total:</th>
                                                         <th id="total-stock"></th>
                                                         <th></th>
                                                         <th id="total-value"></th>
@@ -461,11 +708,6 @@ if (isset($_REQUEST['moveToLocation'])) {
                     {
                         "data": "product_name",
                         "title": "Product Name",
-                        "orderable": false
-                    },
-                    {
-                        "data": "category_name",
-                        "title": "Category",
                         "orderable": false
                     },
                     {
@@ -673,9 +915,17 @@ if (isset($_REQUEST['moveToLocation'])) {
 
         function assignWarehouse(product_id, batch_number, product_name) {
             window.currentDialog = $.dialog({
-                title: 'Assign Warehouse for Product: ' + product_name + ' (' + batch_number + ')',
+                title: 'Assign Warehouse & Location for Product: ' + product_name + ' (' + batch_number + ')',
                 columnClass: 'm',
                 content: `url:stock-list?assignWarehouse=true&product_id=${product_id}&batch_number=${batch_number}`,
+                onContentReady: function() {
+                    // Initialize selectize after content loads
+                    $('#warehouse_id, #location_id').selectize({
+                        create: false,
+                        sortField: 'text',
+                        dropdownParent: 'body'
+                    });
+                }
             });
         }
 
@@ -685,10 +935,11 @@ if (isset($_REQUEST['moveToLocation'])) {
                 columnClass: 'm',
                 content: `url:stock-list?moveToLocation=true&product_id=${product_id}&batch_number=${batch_number}`,
                 onContentReady: function() {
-                    $('#location').selectize({
+                    // Initialize selectize after content loads
+                    $('#warehouse_id, #location_id').selectize({
                         create: false,
-                        dropdownParent: 'body',
-                        sortField: 'text'
+                        sortField: 'text',
+                        dropdownParent: 'body'
                     });
                 }
             });

@@ -23,7 +23,7 @@ if (isset($_REQUEST['draw']) && isset($_REQUEST['stock_list'])) {
             LEFT JOIN `tbl_suppliers` sp ON p.supplier_id = sp.supplier_id
             LEFT JOIN `tbl_warehouse` w ON s.warehouse_id = w.warehouse_id
             LEFT JOIN `tbl_warehouse_location` wl ON s.location_id = wl.location_id
-            WHERE s.quantity > 0";
+            WHERE 1=1";
 
     if ($search) {
         $sql .= " AND (p.product_name LIKE '%$search%' OR c.category_name LIKE '%$search%' OR sp.supplier_name LIKE '%$search%')";

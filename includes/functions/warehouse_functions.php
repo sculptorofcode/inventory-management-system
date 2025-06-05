@@ -389,7 +389,7 @@ function getStockLocationHistory($stock_id): array
             c.full_name as moved_by_name
             FROM `tbl_stock_location_history` slh
             LEFT JOIN `tbl_warehouse` ow ON slh.old_warehouse_id = ow.warehouse_id
-            JOIN `tbl_warehouse` nw ON slh.new_warehouse_id = nw.warehouse_id
+            LEFT JOIN `tbl_warehouse` nw ON slh.new_warehouse_id = nw.warehouse_id
             LEFT JOIN `tbl_warehouse_location` ol ON slh.old_location_id = ol.location_id
             LEFT JOIN `tbl_warehouse_location` nl ON slh.new_location_id = nl.location_id
             LEFT JOIN `tbl_customers` c ON slh.moved_by = c.customer_id
@@ -499,9 +499,9 @@ function movePartialStockToLocation($stock_id, $warehouse_id, $location_id, $qua
         $newBatchNumber = $stock['batch_number'] . '-SPLIT-' . date('YmdHis');
 
         $stmt = $conn->prepare("INSERT INTO `tbl_stock` 
-                              (product_id, batch_number, quantity, unit_cost_price, warehouse_id, location_id, original_batch)
-                              VALUES
-                              (:product_id, :batch_number, :quantity, :unit_cost_price, :warehouse_id, :location_id, :original_batch)");
+                      (product_id, batch_number, quantity, unit_cost_price, warehouse_id, location_id, original_batch, supplier_id)
+                      VALUES
+                      (:product_id, :batch_number, :quantity, :unit_cost_price, :warehouse_id, :location_id, :original_batch, :supplier_id)");
 
         $stmt->bindParam(':product_id', $stock['product_id']);
         $stmt->bindParam(':batch_number', $newBatchNumber);
@@ -510,6 +510,7 @@ function movePartialStockToLocation($stock_id, $warehouse_id, $location_id, $qua
         $stmt->bindParam(':warehouse_id', $warehouse_id);
         $stmt->bindParam(':location_id', $location_id);
         $stmt->bindParam(':original_batch', $stock['batch_number']);
+        $stmt->bindParam(':supplier_id', $stock['supplier_id']);
         $stmt->execute();
 
         $newStockId = $conn->lastInsertId();

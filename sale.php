@@ -18,6 +18,7 @@ if (isset($_POST['sale'])) {
     $due_amount = filtervar($_POST['due_amount']);
     $pay_mode = filtervar($_POST['pay_mode']);
     $notes = filtervar($_POST['notes']);
+    $user_id = $userdata['customer_id']; // Get the current user ID
 
     $conn->beginTransaction();
     try {
@@ -36,6 +37,7 @@ if (isset($_POST['sale'])) {
             paid_amount = :paid_amount, 
             due_amount = :due_amount, 
             pay_mode = :pay_mode, 
+            status = 'confirmed',
             notes = :notes");
 
         $stmt->bindParam(':customer_id', $customer_id);
@@ -76,6 +78,29 @@ if (isset($_POST['sale'])) {
             $stmt->bindParam(':order_date', $order_date);
 
             $stmt->execute();
+            
+            // Get customer info for shipping address
+            $customer = getCustomerById($customer_id);
+            if ($shipping_address == '') {
+                $shipping_address = $customer['address'] ?? 'Customer address not available';
+            }
+            
+            // Record status log
+            $stmt = $conn->prepare("INSERT INTO `tbl_sale_order_status_log` SET 
+                                    order_id = :order_id, 
+                                    old_status = :old_status, 
+                                    new_status = :new_status, 
+                                    remarks = :remarks, 
+                                    changed_by = :changed_by, 
+                                    changed_at = NOW()");
+            $stmt->bindParam(':order_id', $sale_order_id);
+            $stmt->bindValue(':old_status', 'pending');
+            $stmt->bindValue(':new_status', 'confirmed');
+            $stmt->bindValue(':remarks', 'Order created and stock allocated');
+            $stmt->bindParam(':changed_by', $user_id);
+            $stmt->execute();
+            
+            $now = date('Y-m-d H:i:s');
 
             foreach ($_POST['product_id'] as $index => $product_id) {
                 $quantity = filtervar($_POST['quantity'][$index]);
@@ -86,10 +111,23 @@ if (isset($_POST['sale'])) {
                 $gst_amount = filtervar($_POST['gst_amount'][$index]);
                 $sub_total = filtervar($_POST['sub_total'][$index]);
                 $total = filtervar($_POST['total'][$index]);
+                
+                // Use the new stock deduction function to handle all stock operations
+                $stockResult = deductStockForSale(
+                    $product_id,
+                    $quantity,
+                    $inv_number,
+                    $notes,
+                    $user_id,
+                    $shipping_address
+                );
+                
+                $batch_number = $stockResult['batch_number'];
 
                 $stmt = $conn->prepare("INSERT INTO `tbl_sale_order_details` SET 
                     sale_order_id = :sale_order_id, 
                     product_id = :product_id, 
+                    batch_number = :batch_number,
                     quantity = :quantity, 
                     unit_cost_price = :unit_cost_price, 
                     sale_price = :sale_price, 
@@ -101,6 +139,7 @@ if (isset($_POST['sale'])) {
 
                 $stmt->bindParam(':sale_order_id', $sale_order_id);
                 $stmt->bindParam(':product_id', $product_id);
+                $stmt->bindParam(':batch_number', $batch_number);
                 $stmt->bindParam(':quantity', $quantity);
                 $stmt->bindParam(':unit_cost_price', $unit_cost_price);
                 $stmt->bindParam(':sale_price', $sale_price);
@@ -109,13 +148,12 @@ if (isset($_POST['sale'])) {
                 $stmt->bindParam(':gst_amount', $gst_amount);
                 $stmt->bindParam(':sub_total', $sub_total);
                 $stmt->bindParam(':total', $total);
-
                 $stmt->execute();
             }
         }
 
         $conn->commit();
-        echo json_encode(['status' => 'success', 'message' => 'Sale order added successfully', 'redirect' => 'sale']);
+        echo json_encode(['status' => 'success', 'message' => 'Sale order added successfully with stock deduction', 'redirect' => 'sale']);
     } catch (Exception $e) {
         $conn->rollBack();
         echo json_encode(['status' => 'error', 'message' => 'Failed to add sale order: ' . $e->getMessage()]);
@@ -127,7 +165,7 @@ if (isset($_POST['getUnitCostPrice'])) {
     $productId = filtervar($_POST['productId']);
     if ($productId) {
         $product = getProductById($productId);
-        $stmt = $conn->prepare("SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND quantity > 0 ORDER BY stock_id DESC LIMIT 1");
+        $stmt = $conn->prepare("SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND quantity > 0 ORDER BY added_on ASC LIMIT 1");
         $stmt->execute(['product_id' => $productId]);
         if ($stmt->rowCount() === 0) {
             echo json_encode(['status' => 'error', 'message' => 'Product not in stock']);
@@ -138,9 +176,57 @@ if (isset($_POST['getUnitCostPrice'])) {
         $product['sale_price'] = round($stock_count['unit_cost_price'], 2);
         $product['gst_rate'] = round($product['gst_rate'], 2);
         $product['selling_price'] = round($product['selling_price'], 2);
+        // Also return the available stock quantity for validation
+        $product['available_stock'] = $stock_count['quantity'];
         echo json_encode(['status' => 'success', 'data' => $product]);
     } else {
         echo json_encode(['status' => 'error', 'message' => 'Product not found']);
+    }
+    exit;
+}
+
+if (isset($_POST['checkStockAvailability'])) {
+    $productId = filtervar($_POST['productId']);
+    $quantity = filtervar($_POST['quantity']);
+    
+    if ($productId && $quantity) {
+        $stockInfo = checkSufficientStock($productId, $quantity);
+        
+        if ($stockInfo) {
+            // Product has sufficient stock
+            echo json_encode([
+                'status' => 'success',
+                'data' => [
+                    'available' => true,
+                    'product_name' => $stockInfo['product_name'] ?? '',
+                    'available_quantity' => $stockInfo['quantity'] ?? $stockInfo['available_quantity'],
+                    'needs_multiple_batches' => isset($stockInfo['needs_multiple_batches']) ? $stockInfo['needs_multiple_batches'] : false
+                ]
+            ]);
+        } else {
+            // Get available quantity
+            $stmt = $conn->prepare("SELECT SUM(s.quantity) as total_available, p.product_name 
+                                   FROM tbl_stock s
+                                   JOIN tbl_products p ON s.product_id = p.product_id
+                                   WHERE s.product_id = :product_id");
+            $stmt->bindParam(':product_id', $productId);
+            $stmt->execute();
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'status' => 'error',
+                'data' => [
+                    'available' => false,
+                    'product_name' => $result['product_name'] ?? 'Unknown product',
+                    'available_quantity' => $result['total_available'] ?? 0,
+                    'required_quantity' => $quantity,
+                    'message' => 'Insufficient stock for ' . ($result['product_name'] ?? 'this product') . 
+                               '. Available: ' . ($result['total_available'] ?? 0) . ', Required: ' . $quantity
+                ]
+            ]);
+        }
+    } else {
+        echo json_encode(['status' => 'error', 'message' => 'Invalid product or quantity']);
     }
     exit;
 }
@@ -383,7 +469,7 @@ if (isset($_POST['getProducts'])) {
                                         <input type="text" name="discount" id="discount"
                                                class="form-control numInput calculateTotal"
                                                placeholder="Enter discount"
-                                               value="<?= isset($row) ? $row['discount'] : '' ?>" required>
+                                               value="<?= isset($row) ? $row['discount'] : '0' ?>" required>
                                     </div>
                                     <div class="col-md form-group">
                                         <label for="total_amount">Total Amount</label>
@@ -429,7 +515,8 @@ if (isset($_POST['getProducts'])) {
 
                                 <div class="row">
                                     <div class="form-group col-md-12">
-                                        <button type="submit" name="sale" class="btn btn-primary">Submit</button>
+                                        <button type="button" id="validate-stock-btn" class="btn btn-info me-2">Validate Stock</button>
+                                        <button type="submit" name="sale" class="btn btn-primary" id="submit-btn" disabled>Submit</button>
                                     </div>
                                 </div>
                             </form>
@@ -449,6 +536,74 @@ if (isset($_POST['getProducts'])) {
         new DynamicRow($("#product_details"), calculateTotal, calculateTotal);
 
         let selectedValues = {};
+        // Store available stock for each product
+        let availableStock = {};
+        
+        // Handle stock validation button
+        $('#validate-stock-btn').on('click', function() {
+            let isValid = true;
+            let promises = [];
+            
+            // Check each product row
+            $('.clone_row').each(function() {
+                let $row = $(this);
+                let productId = $row.find('.product_id').val();
+                let quantity = parseInt($row.find('.quantity').val()) || 0;
+                
+                if (productId && quantity > 0) {
+                    // Create a promise for this row's validation
+                    let promise = new Promise((resolve, reject) => {
+                        $.ajax({
+                            url: 'sale',
+                            type: 'POST',
+                            data: {
+                                checkStockAvailability: true,
+                                productId: productId,
+                                quantity: quantity
+                            },
+                            success: function(response) {
+                                try {
+                                    let result = JSON.parse(response);
+                                    if (result.status === 'error') {
+                                        toastr.error(result.data.message);
+                                        $row.find('.quantity').addClass('is-invalid');
+                                        isValid = false;
+                                    } else {
+                                        $row.find('.quantity').removeClass('is-invalid');
+                                        if (result.data.needs_multiple_batches) {
+                                            toastr.warning('Product "' + result.data.product_name + '" will use multiple batches for this quantity.');
+                                        }
+                                    }
+                                    resolve();
+                                } catch (error) {
+                                    console.error(error);
+                                    reject(error);
+                                }
+                            },
+                            error: function(error) {
+                                reject(error);
+                            }
+                        });
+                    });
+                    
+                    promises.push(promise);
+                }
+            });
+            
+            // Wait for all validations to complete
+            Promise.all(promises).then(() => {
+                if (isValid) {
+                    toastr.success('Stock validation successful! You can now submit the form.');
+                    $('#submit-btn').prop('disabled', false);
+                } else {
+                    toastr.error('Please fix the stock quantity issues before submitting.');
+                    $('#submit-btn').prop('disabled', true);
+                }
+            }).catch(() => {
+                toastr.error('Error validating stock. Please try again.');
+                $('#submit-btn').prop('disabled', true);
+            });
+        });
 
         $(document).on('change', 'select.product_id', function () {
             let $this = $(this);
@@ -480,6 +635,25 @@ if (isset($_POST['getProducts'])) {
                                 $row.find('.gst_type').val(data['gst_type']);
                                 $row.find('.gst_rate').val(data['gst_rate']);
                                 $row.find('.hsn_code').val(data['hsn_code']);
+                                
+                                // Store available stock for this product and row
+                                let rowIndex = $row.index();
+                                availableStock[rowIndex] = {
+                                    productId: productId,
+                                    stock: data['available_stock']
+                                };
+                                
+                                // Set max attribute on quantity input
+                                $row.find('.quantity').attr('max', data['available_stock']);
+                                $row.find('.quantity').attr('data-original-title', 'Available: ' + data['available_stock']);
+                                $row.find('.quantity').attr('title', 'Available: ' + data['available_stock']);
+                                $row.find('.quantity').tooltip({
+                                    trigger: 'hover'
+                                });
+                                
+                                // Reset validation state
+                                $('#submit-btn').prop('disabled', true);
+                                
                                 calculateTotal();
                             } else {
                                 toastr && toastr.error(data['message'] ?? 'Error getting unit cost price');
@@ -495,7 +669,28 @@ if (isset($_POST['getProducts'])) {
     });
 
     $(document).on('input', '.clone_row, .calculateTotal', function () {
+        // When any input changes, require re-validation
+        $('#submit-btn').prop('disabled', true);
         calculateTotal();
+    });
+    
+    // Validate quantity against available stock
+    $(document).on('input', '.quantity', function() {
+        let $row = $(this).closest('.clone_row');
+        let rowIndex = $row.index();
+        let quantity = parseInt($(this).val()) || 0;
+        const maxQuantity = parseInt($(this).attr('max')) || 0;
+        
+        // Check if we have stock information for this row
+        if (maxQuantity) {
+            let max = maxQuantity;
+            
+            if (quantity > max) {
+                toastr && toastr.error('Cannot exceed available stock of ' + max + ' units');
+                $(this).val(max);
+                calculateTotal();
+            }
+        }
     });
 
     function calculateTotal() {

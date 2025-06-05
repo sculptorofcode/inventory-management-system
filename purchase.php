@@ -354,7 +354,7 @@ if (isset($_POST['getProducts'])) {
                                             <input type="text" name="discount" id="discount"
                                                 class="form-control numInput calculateTotal"
                                                 placeholder="Enter discount"
-                                                value="<?= isset($row) ? $row['discount'] : '' ?>" required>
+                                                value="<?= isset($row) ? $row['discount'] : '0' ?>" required>
                                         </div>
                                         <div class="col-md form-group">
                                             <label for="total_amount">Total Amount</label>

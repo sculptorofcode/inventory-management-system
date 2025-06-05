@@ -54,11 +54,19 @@
                     AMOUNT
                 </th>
             </tr>
-            </thead>
-            <tbody>
+            </thead>            <tbody>
             <?php foreach ($order_details as $order_detail) { ?>
                 <tr style="background-color: #f0f0f0;">
-                    <td style="border: 2px solid #ddd; padding: 5px; font-size: 14px;"><?= html_entity_decode($order_detail['product_name']); ?></td>
+                    <td style="border: 2px solid #ddd; padding: 5px; font-size: 14px;">
+                        <?= html_entity_decode($order_detail['product_name']); ?>
+                        <?php if (!empty($order_detail['batch_number']) && $order['status'] != 'pending'): ?>
+                            <br><small style="color: #555; font-style: italic;">Batch: <?= $order_detail['batch_number'] ?></small>
+                            <?php if (!empty($order_detail['warehouse_name'])): ?>
+                                <br><small style="color: #555; font-style: italic;">From: <?= $order_detail['warehouse_name'] ?>
+                                <?= !empty($order_detail['location_info']) ? ' - ' . $order_detail['location_info'] : '' ?></small>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    </td>
                     <td style="border: 2px solid #ddd; padding: 5px; text-align: center; font-size: 14px;"><?= $order_detail['quantity'] ?></td>
                     <td style="border: 2px solid #ddd; padding: 5px; text-align: right; font-size: 14px;"><?= rupee($order_detail['sale_price'],2) ?></td>
                     <td style="border: 2px solid #ddd; padding: 5px; text-align: right; font-size: 14px;"><?= rupee($order_detail['sub_total'],2) ?></td>

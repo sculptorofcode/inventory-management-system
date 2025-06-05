@@ -15,7 +15,8 @@ $(document).keydown(function(event) {
 });
 
 function rupee(number) {
-    number = parseFloat(number);
+    number = parseFloat(String(number).replace(/,/g, ''));
+
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR'

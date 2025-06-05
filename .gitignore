@@ -1,0 +1,60 @@
+# Dependency directories
+/vendor/
+
+# IDE files
+/.idea/
+/.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Log files
+/logs/
+*.log
+
+# Environment variables and sensitive configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Configuration file containing sensitive credentials
+/includes/config/config.php
+
+# Database files
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Temporary files
+/tmp/
+*.tmp
+*.temp
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Composer lock file (optional, can be included if desired)
+# composer.lock
+
+# User uploaded files (if you have any specific directory)
+/uploads/
+/assets/uploads/
+
+# Build artifacts (if any)
+/dist/
+/build/
+
+# Cache files
+/cache/
+*.cache
+
+# Debug files
+debug_*.php
+test_*.php
+*_test.php
+
+# Documentation files
+/docs/private/

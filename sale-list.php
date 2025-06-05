@@ -466,15 +466,12 @@ if (isset($_REQUEST['change-status'])) {
 }
 
 if (isset($_REQUEST['change_status'])) {
-    $order_id = $_POST['order_id'];
-    $status = $_POST['status'];
-    $delivery_date = filtervar($_POST['delivery_date']);
-    $shipping_address = filtervar($_POST['shipping_address']);
-    $remarks = filtervar($_POST['remarks']);
-    if (empty($status)) {
-        echo json_encode(['status' => 'error', 'message' => 'Select status']);
-        exit;
-    }
+    $order_id = filtervar($_REQUEST['order_id']);
+    $status = filtervar($_REQUEST['status']);
+    $remarks = filtervar($_REQUEST['remarks']);
+    $now = date('Y-m-d H:i:s');
+    $user_id = $userdata['customer_id'];
+
     $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order` WHERE order_id = :order_id");
     $stmt->bindParam(':order_id', $order_id);
     $stmt->execute();
@@ -484,55 +481,73 @@ if (isset($_REQUEST['change_status'])) {
             echo json_encode(['status' => 'error', 'message' => 'Status not changed']);
             exit;
         }
-
-        $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order_details` WHERE sale_order_id = :order_id");
-        $stmt->bindParam(':order_id', $order_id);
-        $stmt->execute();
-        $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
+        
+        // Get shipping address
+        $shipping_address = $order['shipping_address'];
+        if (empty($shipping_address)) {
+            $customer = getCustomerById($order['customer_id']);
+            $shipping_address = $customer['address'] ?? 'Customer address not available';
+        }
+        
         try {
             $conn->beginTransaction();
-            foreach ($order_details as $order_detail) {
-                $stmt = $conn->prepare("SELECT * FROM `tbl_stock` WHERE product_id = :product_id AND quantity >= :quantity ORDER BY added_on ASC LIMIT 1");
-                $stmt->bindParam(':product_id', $order_detail['product_id']);
-                $stmt->bindParam(':quantity', $order_detail['quantity']);
+            
+            // If cancelling a confirmed or delivered order, restore stock
+            if ($status === 'cancelled' && ($order['status'] === 'confirmed' || $order['status'] === 'delivered')) {
+                $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order_details` WHERE sale_order_id = :order_id");
+                $stmt->bindParam(':order_id', $order_id);
                 $stmt->execute();
-                $stock = $stmt->fetch(PDO::FETCH_ASSOC);
-                if (!empty($stock)) {
-                    $batch_number = $stock['batch_number'];
-                    $stmt = $conn->prepare("UPDATE `tbl_stock` SET quantity = quantity - :quantity WHERE stock_id = :stock_id");
-                    $stmt->bindParam(':quantity', $order_detail['quantity']);
-                    $stmt->bindParam(':stock_id', $stock['stock_id']);
-                    $stmt->execute();
-
-                    $stmt = $conn->prepare("INSERT INTO `tbl_stock_transactions` SET product_id = :product_id, stock_id = :stock_id, quantity_change = :quantity_change, previous_quantity = :previous_quantity, transaction_type = :transaction_type, transaction_date = :transaction_date, notes = :notes, user_id = :user_id, order_reference = :order_reference");
-                    $remarks_new = 'Order ID: ' . $order['inv_number'] . ' - ' . $remarks;
-                    $stmt->bindParam(':product_id', $order_detail['product_id']);
-                    $stmt->bindParam(':stock_id', $stock['stock_id']);
-                    $stmt->bindParam(':quantity_change', $order_detail['quantity']);
-                    $stmt->bindParam(':previous_quantity', $stock['quantity']);
-                    $stmt->bindValue(':transaction_type', 'out');
-                    $stmt->bindParam(':transaction_date', $now);
-                    $stmt->bindParam(':notes', $remarks_new);
-                    $stmt->bindParam(':user_id', $user_id);
-                    $stmt->bindParam(':order_reference', $order['inv_number']);
-                    $stmt->execute();
-
-                    $stmt = $conn->prepare("UPDATE `tbl_sale_order_details` SET batch_number = :batch_number WHERE sale_order_id = :order_id AND product_id = :product_id");
-                    $stmt->bindParam(':batch_number', $batch_number);
-                    $stmt->bindParam(':order_id', $order_id);
-                    $stmt->bindParam(':product_id', $order_detail['product_id']);
-                    $stmt->execute();
-
-                    $stmt = $conn->prepare("UPDATE `tbl_products` SET stock = stock - :quantity WHERE product_id = :product_id");
-                    $stmt->bindParam(':quantity', $order_detail['quantity']);
-                    $stmt->bindParam(':product_id', $order_detail['product_id']);
-                    $stmt->execute();
-                } else {
-                    throw new Exception('Insufficient stock');
+                $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+                foreach ($order_details as $order_detail) {
+                    // If the order detail has a batch number, we need to restore stock
+                    if (!empty($order_detail['batch_number'])) {
+                        // Use the new function to restore stock
+                        restoreStockFromCancelledOrder(
+                            $order_detail['product_id'],
+                            $order_detail['quantity'],
+                            $order_detail['batch_number'],
+                            $order['inv_number'],
+                            $remarks,
+                            $user_id
+                        );
+                    }
+                }
+            }
+            // If changing from pending to delivered/confirmed, we might need to handle stock deduction
+            // This branch handles legacy orders that didn't deduct stock at creation time
+            else if (($status === 'delivered' || $status === 'confirmed') && $order['status'] === 'pending') {
+                $stmt = $conn->prepare("SELECT * FROM `tbl_sale_order_details` WHERE sale_order_id = :order_id");
+                $stmt->bindParam(':order_id', $order_id);
+                $stmt->execute();
+                $order_details = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                
+                foreach ($order_details as $order_detail) {
+                    // Only process items without batch numbers assigned (legacy orders)
+                    if (empty($order_detail['batch_number'])) {
+                        // Use the new stock deduction function
+                        $stockResult = deductStockForSale(
+                            $order_detail['product_id'],
+                            $order_detail['quantity'],
+                            $order['inv_number'],
+                            $remarks,
+                            $user_id,
+                            $shipping_address
+                        );
+                        
+                        // Update sale order detail with batch number
+                        $stmt = $conn->prepare("UPDATE `tbl_sale_order_details` 
+                                              SET batch_number = :batch_number 
+                                              WHERE sale_order_id = :order_id AND product_id = :product_id");
+                        $stmt->bindParam(':batch_number', $stockResult['batch_number']);
+                        $stmt->bindParam(':order_id', $order_id);
+                        $stmt->bindParam(':product_id', $order_detail['product_id']);
+                        $stmt->execute();
+                    }
                 }
             }
 
+            // Record status change in status log table
             $stmt = $conn->prepare("INSERT INTO `tbl_sale_order_status_log` SET order_id = :order_id, old_status = :old_status, new_status = :new_status, remarks = :remarks, changed_by = :changed_by, changed_at = :changed_at");
             $stmt->bindParam(':order_id', $order_id);
             $stmt->bindParam(':old_status', $order['status']);
@@ -542,21 +557,19 @@ if (isset($_REQUEST['change_status'])) {
             $stmt->bindParam(':changed_at', $now);
             $stmt->execute();
 
-            $stmt = $conn->prepare("UPDATE `tbl_sale_order` SET status = :status, delivery_date = :delivery_date, shipping_address = :shipping_address WHERE order_id = :order_id");
+            // Update order status
+            $stmt = $conn->prepare("UPDATE `tbl_sale_order` SET status = :status WHERE order_id = :order_id");
             $stmt->bindParam(':status', $status);
-            $stmt->bindParam(':delivery_date', $delivery_date);
-            $stmt->bindParam(':shipping_address', $shipping_address);
             $stmt->bindParam(':order_id', $order_id);
             $stmt->execute();
 
             $conn->commit();
-
-            echo json_encode(['status' => 'success', 'message' => 'Status changed successfully', 'function' => 'reload']);
+            echo json_encode(['status' => 'success', 'message' => 'Status updated successfully!', 'function' => 'reload']);
         } catch (Exception $e) {
             $conn->rollBack();
             echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
         }
-    }else{
+    } else {
         echo json_encode(['status' => 'error', 'message' => 'Order not found']);
     }
     exit;
@@ -599,7 +612,7 @@ if (isset($_REQUEST['change_status'])) {
 <?php include './includes/layouts/scripts.php'; ?>
 <script>
     $(document).ready(function () {
-        $('#salesList').DataTable({
+        let salesListTable = $('#salesList').DataTable({
             processing: true,
             serverSide: true,
             ajax: {

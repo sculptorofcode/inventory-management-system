@@ -67,6 +67,8 @@ $pdf = new TCPDF('P', 'mm', 'A4', true, 'UTF-8', false);
 $pdf->SetCreator(APP_NAME);
 $pdf->SetAuthor(APP_NAME);
 
+$pdf->SetPageOrientation('L');
+
 if ($stockInfo) {
     $title = 'Location History - ' . $stockInfo['product_name'] . ' (Batch: ' . ($stockInfo['batch_number'] ?: 'N/A') . ')';
     $pdf->SetTitle($title);
@@ -85,7 +87,7 @@ $pdf->setPrintHeader(false);
 $pdf->setPrintFooter(false);
 
 // Set margins
-$pdf->SetMargins(15, 15, 15);
+$pdf->SetMargins(8, 8, 8);
 $pdf->SetAutoPageBreak(true, 15);
 
 // Add a page
@@ -105,18 +107,31 @@ if (file_exists('assets/images/logo/transparent/logo.png')) {
 
 // Title
 $pdf->SetFont('helvetica', 'B', 18);
-$pdf->Cell(0, 20, '', 0, 1); // Add space after logo
+$pdf->Cell(0,23, '', 0, 1); // Add space after logo
 $pdf->Cell(0, 10, 'Location History Report', 0, 1, 'C');
-$pdf->SetFont('helvetica', '', 12);
+$pdf->SetFont('helvetica', '', 10);
 
 if ($stockInfo) {
-    $pdf->Cell(0, 10, 'Product: ' . $stockInfo['product_name'], 0, 1);
-    $pdf->Cell(0, 10, 'Batch Number: ' . ($stockInfo['batch_number'] ?: 'N/A'), 0, 1);
+    $productText = 'Product: ' . $stockInfo['product_name'];
+    $batchText = 'Batch Number: ' . ($stockInfo['batch_number'] ?: 'N/A');
+    $pdf->Cell(0, 10, $productText . '    |    ' . $batchText, 0, 1);
 } else if ($productInfo) {
     $pdf->Cell(0, 10, 'Product: ' . $productInfo['product_name'], 0, 1);
 }
 
-$pdf->Cell(0, 10, 'Generated: ' . date('d M Y H:i:s'), 0, 1);
+// Show title left, generated right in same row
+$pdf->SetFont('helvetica', 'B', 18);
+
+// Use multicell for left and right alignment in same row
+$left = 'Location History Report';
+$right = 'Generated: ' . date('d M Y H:i:s');
+$pdf->SetFont('helvetica', 'B', 14);
+$pdf->Cell(0, 0, '', 0, 1); // move to new line
+$y = $pdf->GetY();
+$pdf->SetXY($pdf->GetX(), $y);
+$pdf->Cell(140, 10, $left, 0, 0, 'L');
+$pdf->Cell(0, 10, $right, 0, 1, 'R');
+$pdf->SetFont('helvetica', '', 10);
 $pdf->Ln(5);
 
 if (!empty($history)) {
@@ -160,7 +175,7 @@ if (!empty($history)) {
         
         // To location
         $html .= '<td>';
-        $html .= htmlspecialchars($record['new_warehouse_name']);
+        $html .= htmlspecialchars($record['new_warehouse_name'] ?? 'N/A');
         if ($record['new_location_id']) {
             $html .= '<br/><small>' . htmlspecialchars($record['new_location_type'] . ': ' . $record['new_location_name']) . '</small>';
         }

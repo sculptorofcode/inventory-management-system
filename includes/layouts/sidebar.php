@@ -16,8 +16,8 @@
 
     <ul class="menu-inner py-1">
         <li class="menu-item">
-            <a href="dashboard" class="menu-link">
-                <i class="menu-icon tf-icons bx bx-home-circle"></i>
+            <a href="inventory-analytics" class="menu-link">
+                <i class="menu-icon tf-icons bx bx-chart"></i>
                 <div data-i18n="Fluid">Dashboard</div>
             </a>
         </li>
@@ -61,7 +61,8 @@
                     </a>
                 </li>
             </ul>
-        </li>        <li class="menu-item">
+        </li>
+        <li class="menu-item">
             <a href="javascript:void(0);" class="menu-link menu-toggle">
                 <i class="menu-icon tf-icons bx bx-archive"></i>
                 <div>Stock Management</div>
@@ -129,6 +130,24 @@
                 <li class="menu-item">
                     <a href="sale-list" class="menu-link">
                         <div>List</div>
+                    </a>
+                </li>
+            </ul>
+        </li>
+        <li class="menu-item">
+            <a href="javascript:void(0);" class="menu-link menu-toggle">
+                <i class="menu-icon tf-icons bx bx-user"></i>
+                <div data-i18n="Account Settings">Customer</div>
+            </a>
+            <ul class="menu-sub">
+                <li class="menu-item">
+                    <a href="customer" class="menu-link">
+                        <div data-i18n="CustomerAdd">Add</div>
+                    </a>
+                </li>
+                <li class="menu-item">
+                    <a href="customer-list" class="menu-link">
+                        <div data-i18n="CustomerList">List</div>
                     </a>
                 </li>
             </ul>

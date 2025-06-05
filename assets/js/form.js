@@ -1,6 +1,6 @@
 $(function () {
     const EMAIL_REGEX = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,6}$/;
-    $(document).on('submit', 'form', function (e) {
+    $(document).on('submit', 'form:not(.not-form-js)', function (e) {
         e.preventDefault();
         let form = $(this);
         let submitBtn = form.find('[type="submit"]');
@@ -31,7 +31,7 @@ $(function () {
             },
             success: function (data) {
                 try {
-                    let res = JSON.parse(data);
+                    let res = typeof data === 'string' ? JSON.parse(data) : data;
                     if (typeof res === 'object') {
                         if (res.status === 'success') {
                             form.removeClass('was-validated');

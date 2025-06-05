@@ -5,6 +5,12 @@ include 'payment_functions.php';
 include 'product_functions.php';
 include 'supplier_functions.php';
 include 'warehouse_functions.php';
+include 'inventory_valuation_functions.php';
+include 'inventory_control_functions.php';
+include 'financial_calculations_functions.php';
+include 'demand_forecasting_functions.php';
+include 'analytics_dashboard_functions.php';
+include 'stock_functions.php';
 
 function filtervar($var)
 {

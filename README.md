@@ -66,7 +66,13 @@ composer install
 
 #### 4. **Configure Database Connection** ⚙️
 
-Edit the configuration file `includes/config/config.php`:
+Copy the sample configuration file and update with your settings:
+
+```bash
+cp includes/config/config.sample.php includes/config/config.php
+```
+
+Then edit the configuration file `includes/config/config.php` with your database credentials:
 
 ```php
 const DB_HOST = 'localhost';     // Your database host
@@ -77,6 +83,8 @@ const DB_NAME = 'ims';           // Your database name
 const SITE_URL = 'http://localhost/your-project-folder';
 const LOGIN_URL = 'http://localhost/your-project-folder/login';
 ```
+
+> **Note**: The `config.php` file contains sensitive information and is excluded from the Git repository by the `.gitignore` file.
 
 #### 5. **Configure Web Server** 🌐
 
@@ -120,6 +128,27 @@ After installation, you can log in using:
 - **Password**: admin123
 
 ⚠️ **Important**: Change the default credentials immediately after first login!
+
+### Contributing to the Repository 🤝
+
+When contributing to this repository, please note the following:
+
+1. **Files Excluded from Version Control** 📁
+   
+   The following files and directories are ignored by Git (defined in `.gitignore`):
+   
+   - `/vendor/` directory (installed via Composer)
+   - IDE configuration files (`.idea/`, `.vscode/`)
+   - Log files (`/logs/` and `*.log`)
+   - Configuration files with sensitive information (`/includes/config/config.php`)
+   - Database files (`*.sql`, `*.sqlite`)
+   - Debug and test files (`debug_*.php`, `test_*.php`)
+   
+   When you clone the repository, you'll need to create these files/directories as needed.
+
+2. **Configuration Setup** ⚙️
+   
+   Copy `includes/config/config.sample.php` to `includes/config/config.php` and update with your settings.
 
 ### Troubleshooting 🔧
 
